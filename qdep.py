@@ -104,7 +104,7 @@ def get_sources(pkg_url, pkg_branch):
 		if path.isdir(path.join(cache_dir, ".git")):
 			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.PIPE)
 			if head_ref_res.returncode == 0:
-				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--depth", "1"], cwd=cache_dir, stdout=sys.stderr, check=True)
+				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow"], cwd=cache_dir, stdout=sys.stderr, check=True)
 		else:
 			subprocess.run(["git", "clone", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
 	finally:
