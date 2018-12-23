@@ -185,11 +185,13 @@ defineTest(qdepCollectDependencies) {{
 	return(true)
 }}
 
-!isEmpty(QDEP_DEPENDS): \\
-	qdepCollectDependencies($$QDEP_DEPENDS): \\
-	for(dep, __QDEP_REAL_DEPS): \\
-	!include($$dep): \\
-	error("Failed to include pri file $$dep")
+!isEmpty(QDEP_DEPENDS): {{
+	!qdepCollectDependencies($$QDEP_DEPENDS):error("Failed to collect all dependencies")
+	else: \\
+		for(dep, __QDEP_REAL_DEPS): \\
+		!include($$dep): \\
+		error("Failed to include pri file $$dep")
+}}
 """
 
 if __name__ == '__main__':
