@@ -53,6 +53,8 @@ def package_resolve(packages, suffix=".pri"):
 	pkg_list = []
 	for package in packages:
 		match = re.match(pattern, package)
+		if not match:
+			raise Exception("Given package is not a valid package descriptor: " + package)
 
 		# extract package url
 		if match.group(1) is not None:
@@ -151,23 +153,41 @@ isEmpty(QDEP_TOOL) {{
 	win32: QDEP_TOOL = python $$QDEP_TOOL
 }}
 
-for(arg, QDEP_DEPENDS): qdep_dependencies += $$shell_quote($$arg)
-qdep_paths = $$system($$QDEP_PATH pri-resolve $$qdep_dependencies, lines, qdep_ok)
-!equals(qdep_ok, 0):return(false)
-for(dep, qdep_paths) {{
-	dep_parts = $$split(dep, " ")
-	dep_hash = $$take_first(dep_parts)
-	!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
-		__QDEP_INCLUDE_CACHE += $$dep_hash
-		export(__QDEP_INCLUDE_CACHE)
-		dep_path = $$join(dep_parts, " ")
-		!include($$dep_path) {{
-			warning("Failed to include pri file: $$dep_path")
-			!qdep_allow_inc_fail: return(false)
+defineTest(qdepCollectDependencies) {{
+	qdep_dependencies = 
+	for(arg, ARGS): qdep_dependencies += $$shell_quote($$arg)
+	qdep_paths = $$system($$QDEP_PATH pri-resolve $$qdep_dependencies, lines, qdep_ok)
+	!equals(qdep_ok, 0):return(false)
+	
+	for(dep, qdep_paths) {{
+		dep_parts = $$split(dep, " ")
+		dep_hash = $$take_first(dep_parts)
+		
+		!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
+			__QDEP_INCLUDE_CACHE += $$dep_hash
+			export(__QDEP_INCLUDE_CACHE)
+			
+			dep_path = $$join(dep_parts, " ")
+			sub_deps = $$fromfile($$dep_path, QDEP_DEPENDS)
+			__QDEP_REAL_DEPS_STACK += $$dep_path
+			
+			!isEmpty(sub_deps):!qdepCollectDependencies($$sub_deps):return(false)
+			
+			__QDEP_REAL_DEPS += $$take_last(__QDEP_REAL_DEPS_STACK)
+			export(__QDEP_REAL_DEPS)
 		}}
 	}}
+	
+	!isEmpty(__QDEP_REAL_DEPS_STACK):error("internal corruption detected"):return(false)
+	return(true)
 }}
+
+qdepCollectDependencies($$QDEP_DEPENDS): \\
+	for(dep, __QDEP_REAL_DEPS): \\
+	!include($$dep): \\
+	error("Failed to include pri file $$dep")
 """
 
 if __name__ == '__main__':
+	print(sys.argv, file=sys.stderr)
 	main()
