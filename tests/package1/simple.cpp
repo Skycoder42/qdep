@@ -2,5 +2,5 @@
 
 QString Simple::transform() const
 {
-    return value.toLower() + "X";
+    return value.toUpper();
 }
