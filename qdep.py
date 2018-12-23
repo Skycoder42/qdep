@@ -178,7 +178,6 @@ defineTest(qdepCollectDependencies) {{
 		}}
 	}}
 	
-	!isEmpty(__QDEP_REAL_DEPS_STACK):error("internal corruption detected"):return(false)
 	return(true)
 }}
 
