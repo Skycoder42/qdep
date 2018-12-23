@@ -101,7 +101,11 @@ def get_sources(pkg_url, pkg_branch):
 	locker = FileLocker(cache_dir)
 	locker.acquire()
 	try:
-		if not path.isdir(path.join(cache_dir, ".git")):
+		if path.isdir(path.join(cache_dir, ".git")):
+			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.PIPE)
+			if head_ref_res.returncode == 0:
+				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--depth", "1"], cwd=cache_dir, stdout=sys.stderr, check=True)
+		else:
 			subprocess.run(["git", "clone", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
 	finally:
 		locker.release()
@@ -181,7 +185,8 @@ defineTest(qdepCollectDependencies) {{
 	return(true)
 }}
 
-qdepCollectDependencies($$QDEP_DEPENDS): \\
+!isEmpty(QDEP_DEPENDS): \\
+	qdepCollectDependencies($$QDEP_DEPENDS): \\
 	for(dep, __QDEP_REAL_DEPS): \\
 	!include($$dep): \\
 	error("Failed to include pri file $$dep")
