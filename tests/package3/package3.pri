@@ -1,2 +1,2 @@
 
-#QDEP_DEPENDS += Skycoder42/qdep@master/tests/package4/package4.pri
+#QDEP_DEPENDS += $${REPO_BASE}@master/tests/package4/package4.pri

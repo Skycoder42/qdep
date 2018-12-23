@@ -3,9 +3,12 @@ TEMPLATE = app
 SOURCES += \
     main.cpp
 
-QDEP_DEPENDS += Skycoder42/qdep@master/tests/package1/package1.pri
-QDEP_DEPENDS += Skycoder42/qdep@master/tests/package2/package2.pri
-QDEP_DEPENDS += Skycoder42/qdep@master/tests/package1/package1.pri
+REPO_BASE = file:///home/sky/Programming/QtLibraries/qdep/.git
+#REPO_BASE = Skycoder42/qdep
+
+QDEP_DEPENDS += $${REPO_BASE}@master/tests/package1/package1.pri
+QDEP_DEPENDS += $${REPO_BASE}@master/tests/package2/package2.pri
+QDEP_DEPENDS += $${REPO_BASE}@master/tests/package1/package1.pri
 #QDEP_DEPENDS += Skycoder42/KeepassTransfer
 
 !load(qdep):error("Failed to load qdep feature")
