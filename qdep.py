@@ -18,6 +18,7 @@ try:
 		return appdirs.user_cache_dir("qdep")
 except ImportError:
 	print("Warning: Failed to find appdirs module - Cache paths might not be as expected", file=sys.stderr)
+
 	def get_cache_dir_default():
 		if sys.platform == "win32":
 			return path.expanduser("~/AppData/Local/qdep/Cache")
@@ -30,9 +31,10 @@ try:
 	from lockfile import LockFile as FileLocker
 except ImportError:
 	print("Warning: Failed to find lockfile module - parallel execution of qdep is not possible!", file=sys.stderr)
+
 	# dummy class
 	class FileLocker:
-		def __init__(self, path):
+		def __init__(self, lock_path):
 			pass
 
 		def acquire(self):
@@ -59,46 +61,42 @@ def get_override_map():
 		return {}
 
 	or_map = {}
-	for env_info in or_env.split("}"):
-		env_pair = env_info.split("{")
+	for env_info in or_env.split(";"):
+		env_pair = env_info.split("^")
 		if len(env_pair) == 2:
 			or_map[env_pair[0]] = env_pair[1]
 	return or_map
 
 
-def package_resolve(packages, suffix=".pri"):
-	or_map = get_override_map()
-	pattern = re.compile(r'^(?:([^@\/]+\/[^@\/]+)|([^@]*@[^@]*:[^@\/]+\/[^@\/]+\.git|\w+:\/\/[^@]*\.git))(?:@([^\/]+)(\/.*)?)?$')
+def package_resolve(package, suffix=".pri"):
+	pattern = re.compile(r'^(?:([^@\/]+\/[^@\/]+)|(\w+:\/\/.*\.git|[^@:]*@[^@]*:[^@]+\.git))(?:@([^\/\s]+)(\/.*)?)?$')
 	path_pattern = re.compile(r'^.*\/([^\/]+)\.git$')
-	pkg_list = []
-	for package in packages:
-		package = or_map[package] if package in or_map else package
-		match = re.match(pattern, package)
-		if not match:
-			raise Exception("Given package is not a valid package descriptor: " + package)
 
-		# extract package url
-		if match.group(1) is not None:
-			pkg_url = "https://github.com/{}.git".format(match.group(1))
-		elif match.group(2) is not None:
-			pkg_url = match.group(2)
-		else:
-			raise Exception("Invalid package specified: " + package)
+	match = re.match(pattern, package)
+	if not match:
+		raise Exception("Given package is not a valid package descriptor: " + package)
 
-		# extract branch
-		if match.group(3) is not None:
-			pkg_branch = match.group(3)
-		else:
-			pkg_branch = None
+	# extract package url
+	if match.group(1) is not None:
+		pkg_url = os.getenv("QDEP_DEFAULT_PKG_FN", "https://github.com/{}.git").format(match.group(1))
+	elif match.group(2) is not None:
+		pkg_url = match.group(2)
+	else:
+		raise Exception("Invalid package specified: " + package)
 
-		# extract pri path
-		if match.group(4) is not None:
-			pkg_path = match.group(4)
-		else:
-			pkg_path = "/" + re.match(path_pattern, pkg_url).group(1) + suffix
+	# extract branch
+	if match.group(3) is not None:
+		pkg_branch = match.group(3)
+	else:
+		pkg_branch = None
 
-		pkg_list.append((pkg_url, pkg_branch, pkg_path))
-	return pkg_list
+	# extract pri path
+	if match.group(4) is not None:
+		pkg_path = match.group(4)
+	else:
+		pkg_path = "/" + re.match(path_pattern, pkg_url).group(1) + suffix
+
+	return pkg_url, pkg_branch, pkg_path
 
 
 def get_all_tags(pkg_url):
@@ -147,7 +145,8 @@ def get_sources(pkg_url, pkg_branch):
 					os.chmod(f_path, cur_perm & NO_WRITE_MASK)
 	except:
 		shutil.rmtree(cache_dir, ignore_errors=True)
-		git_repo_cache.remove(cache_dir)
+		git_repo_cache.discard(cache_dir)
+		raise
 	finally:
 		locker.release()
 
@@ -166,11 +165,15 @@ def prfgen(arguments):
 
 
 def pri_resolve(arguments):
-	for pkg_url, pkg_branch, pkg_path in package_resolve(arguments.input):
-		# get the sources
-		pkg_base = get_sources(pkg_url, pkg_branch)
+	ov_map = get_override_map()
+	for package in arguments.input:
+		pkg_url, pkg_branch, pkg_path = package_resolve(package)
+		if pkg_url in ov_map:
+			pkg_base = ov_map[pkg_url]
+		else:
+			pkg_base = get_sources(pkg_url, pkg_branch)
 		pkg_base = os.path.join(pkg_base, pkg_path[1:])
-		print(hashlib.sha3_512(pkg_base.encode("UTF-8")).hexdigest(), pkg_base)
+		print(hashlib.sha3_512((pkg_url + pkg_path).encode("UTF-8")).hexdigest(), pkg_branch, pkg_base)
 	return 0
 
 
@@ -206,10 +209,16 @@ defineTest(qdepCollectDependencies) {{
 	!equals(qdep_ok, 0):return(false)
 	
 	for(dep, qdep_paths) {{
+		dep_pkg = $$take_first(ARGS)
 		dep_parts = $$split(dep, " ")
 		dep_hash = $$take_first(dep_parts)
+		dep_version = $$take_first(dep_parts)
 		
 		!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
+			$${{dep_hash}}.package = $$dep_pkg
+			$${{dep_hash}}.version = $$dep_version
+			export($${{dep_hash}}.package)
+			export($${{dep_hash}}.version)
 			__QDEP_INCLUDE_CACHE += $$dep_hash
 			export(__QDEP_INCLUDE_CACHE)
 			
@@ -221,7 +230,9 @@ defineTest(qdepCollectDependencies) {{
 			
 			__QDEP_REAL_DEPS += $$take_last(__QDEP_REAL_DEPS_STACK)
 			export(__QDEP_REAL_DEPS)
-		}}
+		}} else: \\
+			!equals(dep_version, $$first($${{dep_hash}}.version)): \\
+			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${{dep_hash}}.package)\\" is used, and version \\"$$dep_version\\" was detected.")
 	}}
 	
 	return(true)
