@@ -53,11 +53,26 @@ def get_cache_dir(pkg_url, pkg_branch):
 	return cache_dir
 
 
+def get_override_map():
+	or_env = os.getenv("QDEP_SOURCE_OVERRIDE")
+	if or_env is None:
+		return {}
+
+	or_map = {}
+	for env_info in or_env.split("}"):
+		env_pair = env_info.split("{")
+		if len(env_pair) == 2:
+			or_map[env_pair[0]] = env_pair[1]
+	return or_map
+
+
 def package_resolve(packages, suffix=".pri"):
+	or_map = get_override_map()
 	pattern = re.compile(r'^(?:([^@\/]+\/[^@\/]+)|([^@]*@[^@]*:[^@\/]+\/[^@\/]+\.git|\w+:\/\/[^@]*\.git))(?:@([^\/]+)(\/.*)?)?$')
 	path_pattern = re.compile(r'^.*\/([^\/]+)\.git$')
 	pkg_list = []
 	for package in packages:
+		package = or_map[package] if package in or_map else package
 		match = re.match(pattern, package)
 		if not match:
 			raise Exception("Given package is not a valid package descriptor: " + package)
@@ -116,7 +131,6 @@ def get_sources(pkg_url, pkg_branch):
 		if path.isdir(path.join(cache_dir, ".git")):
 			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL)
 			if head_ref_res.returncode == 0:
-				print("TEST", file=sys.stderr)
 				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--recurse-submodules"], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
 				needs_ro = True
 		else:
@@ -131,7 +145,6 @@ def get_sources(pkg_url, pkg_branch):
 					f_path = path.join(root, file)
 					cur_perm = stat.S_IMODE(os.lstat(f_path).st_mode)
 					os.chmod(f_path, cur_perm & NO_WRITE_MASK)
-
 	except:
 		shutil.rmtree(cache_dir, ignore_errors=True)
 		git_repo_cache.remove(cache_dir)
@@ -224,5 +237,4 @@ defineTest(qdepCollectDependencies) {{
 """
 
 if __name__ == '__main__':
-	print(sys.argv, file=sys.stderr)
 	main()
