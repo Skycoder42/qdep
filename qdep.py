@@ -117,7 +117,6 @@ def get_sources(pkg_url, pkg_branch):
 			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL)
 			if head_ref_res.returncode == 0:
 				print("TEST", file=sys.stderr)
-				#subprocess.run(["git", "checkout", "."], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
 				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--recurse-submodules"], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
 				needs_ro = True
 		else:
