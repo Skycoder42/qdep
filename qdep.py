@@ -7,6 +7,8 @@ import os
 import os.path as path
 import re
 import hashlib
+import shutil
+import stat
 
 # import appdirs with basic fallback
 try:
@@ -38,6 +40,10 @@ except ImportError:
 
 		def release(self):
 			pass
+
+
+# globals
+git_repo_cache = set()
 
 
 def get_cache_dir(pkg_url, pkg_branch):
@@ -94,22 +100,46 @@ def get_latest_tag(pkg_url):
 
 
 def get_sources(pkg_url, pkg_branch):
+	global git_repo_cache
+
 	if pkg_branch is None:
 		pkg_branch = get_latest_tag(pkg_url)
 
 	cache_dir = get_cache_dir(pkg_url, pkg_branch)
+	if cache_dir in git_repo_cache:
+		return cache_dir
+
 	locker = FileLocker(cache_dir)
 	locker.acquire()
 	try:
+		needs_ro = False
 		if path.isdir(path.join(cache_dir, ".git")):
 			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL)
 			if head_ref_res.returncode == 0:
+				print("TEST", file=sys.stderr)
+				#subprocess.run(["git", "checkout", "."], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
 				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--recurse-submodules"], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
+				needs_ro = True
 		else:
 			subprocess.run(["git", "clone", "--recurse-submodules", "--shallow-submodules", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
+			needs_ro = True
+
+		if needs_ro:
+			NO_WRITE_MASK = ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH
+			for root, dirs, files in os.walk(cache_dir, topdown=True):
+				dirs[:] = [d for d in dirs if d != ".git"]
+				for file in files:
+					f_path = path.join(root, file)
+					cur_perm = stat.S_IMODE(os.lstat(f_path).st_mode)
+					os.chmod(f_path, cur_perm & NO_WRITE_MASK)
+
+	except:
+		shutil.rmtree(cache_dir, ignore_errors=True)
+		git_repo_cache.remove(cache_dir)
 	finally:
 		locker.release()
 
+	git_repo_cache.add(cache_dir)
 	return cache_dir
 
 
