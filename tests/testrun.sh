@@ -12,6 +12,6 @@ QMAKE="${2:-qmake}"
 mkdir -p "$BUILD_PATH"
 cd "$BUILD_PATH"
 "$QMAKE" "$SCRIPT_PATH/project/"
-make qmake_all
-make
-make run-tests
+make qmake_all > /dev/null
+make > /dev/null
+make run-tests > /dev/null

@@ -1,5 +1,5 @@
 @echo off
 
-./qdep.py prfgen --qmake (where /f qmake)
+python ./qdep.py prfgen
 
 move tests\qdep.pro .\dep.pro
