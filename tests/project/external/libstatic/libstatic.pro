@@ -1,4 +1,5 @@
 TEMPLATE = lib
+CONFIG += static
 
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package2/package2.pri
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package3/package3.pri

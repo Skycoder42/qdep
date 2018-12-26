@@ -262,12 +262,18 @@ defineTest(qdepCollectDependencies) {{
 			!qdep_no_cache:equals(dep_needs_cache, True):!cache($${{dep_hash}}.version, set $$QDEP_CACHE_SCOPE):warning("Failed to cache package version for $$dep_pkg")
 			
 			sub_deps = $$fromfile($$dep_path, QDEP_DEPENDS)
-			__QDEP_REAL_DEPS_STACK += $$dep_path
-			
-			!isEmpty(sub_deps):!qdepCollectDependencies($$sub_deps):return(false)
-			
+			__QDEP_REAL_DEPS_STACK += $$dep_path			
+			!isEmpty(sub_deps):!qdepCollectDependencies($$sub_deps):return(false)			
 			__QDEP_REAL_DEPS += $$take_last(__QDEP_REAL_DEPS_STACK)
 			export(__QDEP_REAL_DEPS)
+			
+			sub_exports = $$fromfile($$dep_path, QDEP_PACKAGE_EXPORTS)
+			qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg): \\
+				for(sub_export, sub_exports): \\
+				DEFINES += "$${{sub_export}}="
+			else: \\
+				for(sub_export, sub_exports): \\
+				DEFINES += "$${{sub_export}}=Q_DECL_EXPORT"
 		}} else: \\
 			!equals(dep_version, $$first($${{dep_hash}}.version)): \\
 			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${{dep_hash}}.package)\\" is used, and version \\"$$dep_version\\" was detected.")
