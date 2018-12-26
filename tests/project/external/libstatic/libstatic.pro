@@ -6,7 +6,8 @@ QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package3/package3
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !load(qdep):error("Failed to load qdep feature")
 
+CONFIG += no_run_tests_target
+include(../../testrun.pri)
+
 !package2_included: error("!package2_included")
 !package3_included: error("!package3_included")
-
-QMAKE_EXTRA_TARGETS += run-tests
