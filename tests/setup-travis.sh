@@ -3,7 +3,7 @@ set -e
 
 currDir=$(dirname $0)
 
-if [[ $TRAVIS_OS_NAME == "linux" ]]; then	
+if [[ $TRAVIS_OS_NAME == "linux" ]]; then
 	# append post build script
 	mv qtmodules-travis/ci/linux/build-docker.sh qtmodules-travis/ci/linux/build-docker.sh.bkp
 	cat "$currDir/setup-docker.sh" > qtmodules-travis/ci/linux/build-docker.sh

@@ -200,7 +200,7 @@ def dephash(arguments):
 
 def main():
 	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects")
-	parser.add_argument("-v", "--version", action="version", version='%(prog)s 1.0')
+	parser.add_argument("-v", "--version", action="version", version="%(prog)s 1.0.0")
 	parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for")
 	parser.add_argument("operation", action="store", choices=["prfgen", "dephash", "pri-resolve"], metavar="operation", help="Specify the operation that should be performed by qdep")
 	parser.add_argument("input", action="store", nargs="*", metavar="packages", help="Package descriptors to be processed by qdep")
