@@ -270,10 +270,11 @@ defineTest(qdepCollectDependencies) {{
 			sub_exports = $$fromfile($$dep_path, QDEP_PACKAGE_EXPORTS)
 			qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg): \\
 				for(sub_export, sub_exports): \\
-				DEFINES += "$${{sub_export}}="
+				DEFINES += "$${{sub_export}}=Q_DECL_EXPORT"
 			else: \\
 				for(sub_export, sub_exports): \\
-				DEFINES += "$${{sub_export}}=Q_DECL_EXPORT"
+				DEFINES += "$${{sub_export}}="
+			export(DEFINES)
 		}} else: \\
 			!equals(dep_version, $$first($${{dep_hash}}.version)): \\
 			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${{dep_hash}}.package)\\" is used, and version \\"$$dep_version\\" was detected.")
@@ -289,8 +290,6 @@ defineTest(qdepCollectDependencies) {{
 		!include($$dep): \\
 		error("Failed to include pri file $$dep")
 }}
-
-for(exp_define, QDEP_EXPORTS): DEFINES += "$${{exp_define}}="
 """
 
 if __name__ == '__main__':
