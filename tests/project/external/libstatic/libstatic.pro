@@ -1,6 +1,10 @@
 TEMPLATE = lib
 CONFIG += static
 
+HEADERS += libstatic.h
+
+SOURCES += libstatic.cpp
+
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package2/package2.pri
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package3/package3.pri
 
