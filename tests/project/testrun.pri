@@ -1,7 +1,7 @@
 CONFIG += console
 CONFIG -= app_bundle
 
-HEADERS += tests.h
+HEADERS += $$PWD/tests.h
 INCLUDEPATH += $$PWD
 
 win32:!ReleaseBuild:!DebugBuild {
@@ -54,7 +54,8 @@ win32:!ReleaseBuild:!DebugBuild {
 }
 
 # qdep stats
-message("__QDEP_REAL_DEPS_STACK: $$__QDEP_REAL_DEPS_STACK")
+message("TARGET: $$TARGET")
+!isEmpty(__QDEP_REAL_DEPS_STACK):error("__QDEP_REAL_DEPS_STACK not empty: $$__QDEP_REAL_DEPS_STACK")
 message("__QDEP_REAL_DEPS: $$__QDEP_REAL_DEPS")
 message("__QDEP_INCLUDE_CACHE:")
 for(hash, __QDEP_INCLUDE_CACHE) {
