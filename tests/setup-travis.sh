@@ -11,5 +11,5 @@ if [[ $TRAVIS_OS_NAME == "linux" ]]; then
 	rm qtmodules-travis/ci/linux/build-docker.sh.bkp
 	chmod a+x qtmodules-travis/ci/linux/build-docker.sh
 else
-	$currDir/setup-docker.sh
+	sudo $currDir/setup-docker.sh
 fi
