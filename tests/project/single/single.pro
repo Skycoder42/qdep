@@ -3,8 +3,8 @@ TEMPLATE = app
 SOURCES += \
     main.cpp
 
-REPO_BASE = file:///home/sky/Programming/QtLibraries/qdep/.git
-#REPO_BASE = Skycoder42/qdep
+#REPO_BASE = file:///home/sky/Programming/QtLibraries/qdep/.git
+REPO_BASE = Skycoder42/qdep
 
 QDEP_DEPENDS += $${REPO_BASE}@master/tests/packages/basic/package1/package1.pri
 
