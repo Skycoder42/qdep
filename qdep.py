@@ -118,7 +118,7 @@ def get_latest_tag(pkg_url):
 	return get_all_tags(pkg_url)[-1]
 
 
-def get_sources(pkg_url, pkg_branch):
+def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
 	global git_repo_cache
 
 	if pkg_branch is None:
@@ -133,15 +133,17 @@ def get_sources(pkg_url, pkg_branch):
 	try:
 		needs_ro = False
 		if path.isdir(path.join(cache_dir, ".git")):
-			if not path.exists(path.join(cache_dir, ".qdep_static_branch")):
+			if pull and not path.exists(path.join(cache_dir, ".qdep_static_branch")):
 				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--recurse-submodules"], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
 				needs_ro = True
-		else:
+		elif clone:
 			subprocess.run(["git", "clone", "--recurse-submodules", "--shallow-submodules", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
 			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 			if head_ref_res.returncode != 0:
 				open(path.join(cache_dir, ".qdep_static_branch"), 'a').close()
 			needs_ro = True
+		else:
+			raise Exception("The --no-clone flag was specified - cannot install new packages with pulling disabled")
 
 		if needs_ro:
 			NO_WRITE_MASK = ~stat.S_IWUSR & ~stat.S_IWGRP & ~stat.S_IWOTH
@@ -182,7 +184,7 @@ def pri_resolve(arguments):
 	if pkg_url in ov_map:
 		pkg_base = ov_map[pkg_url]
 	else:
-		pkg_base, pkg_branch = get_sources(pkg_url, pkg_branch)
+		pkg_base, pkg_branch = get_sources(pkg_url, pkg_branch, pull=arguments.pull, clone=arguments.clone)
 	pkg_base = os.path.join(pkg_base, pkg_path[1:])
 	print(pkg_hash(pkg_url, pkg_path))
 	print(pkg_branch)
@@ -202,6 +204,8 @@ def main():
 	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects")
 	parser.add_argument("-v", "--version", action="version", version="%(prog)s 1.0.0")
 	parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for")
+	parser.add_argument("--no-pull", dest="pull", action="store_false", help="Do not update existing packages that are based on branches instead of tags.")
+	parser.add_argument("--no-clone", dest="clone", action="store_false", help="Do not allow installation of new packages. Trying so will lead to an error. Updating existing packages is still possible")
 	parser.add_argument("operation", action="store", choices=["prfgen", "dephash", "pri-resolve"], metavar="operation", help="Specify the operation that should be performed by qdep")
 	parser.add_argument("input", action="store", nargs="*", metavar="packages", help="Package descriptors to be processed by qdep")
 
@@ -225,6 +229,8 @@ isEmpty(QDEP_TOOL) {{
 	win32: QDEP_TOOL = python $$shell_quote($$QDEP_PATH)
 	else: QDEP_TOOL = $$shell_path($$QDEP_PATH)
 	QDEP_TOOL += --qmake $$shell_quote($$QMAKE_QMAKE)
+	qdep_no_pull: QDEP_TOOL += --no-pull
+	qdep_no_clone: QDEP_TOOL += --no-clone
 }}
 
 CONFIG += qdep_build

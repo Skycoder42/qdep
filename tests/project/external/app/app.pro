@@ -10,6 +10,7 @@ QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package5/package5
 QDEP_LINK_DEPENDS += ../libstatic ../libdynamic
 #CONFIG += qdep_no_link
 
+CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !load(qdep):error("Failed to load qdep feature")
 
 include(../../testrun.pri)
