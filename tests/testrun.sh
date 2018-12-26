@@ -11,6 +11,7 @@ QMAKE="${2:-qmake}"
 
 mkdir -p "$BUILD_PATH"
 cd "$BUILD_PATH"
-"$QMAKE" "$SCRIPT_PATH/app/"
+"$QMAKE" "$SCRIPT_PATH/project/"
+make qmake_all
 make
-./app
+make run-tests
