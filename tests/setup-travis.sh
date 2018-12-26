@@ -1,8 +1,14 @@
 #!/bin/bash
 set -e
 
-SCRIPT_PATH="$(readlink -f "$(dirname "$0")")"
+currDir=$(dirname $0)
 
-./qdep.py prfgen --qmake "$(which qmake)"
-
-mv tests/qdep.pro ./
+if [[ $TRAVIS_OS_NAME == "linux" ]]; then	
+	# append post build script
+	mv qtmodules-travis/ci/linux/build-docker.sh qtmodules-travis/ci/linux/build-docker.sh.bkp
+	echo "$currDir/setup-docker.sh" > qtmodules-travis/ci/linux/build-docker.sh
+	cat qtmodules-travis/ci/linux/build-docker.sh.bkp >> qtmodules-travis/ci/linux/build-docker.sh
+	rm qtmodules-travis/ci/linux/build-docker.sh.bkp
+else
+	$currDir/setup-docker.sh
+fi
