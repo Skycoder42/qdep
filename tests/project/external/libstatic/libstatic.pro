@@ -1,0 +1,3 @@
+TEMPLATE = lib
+
+QMAKE_EXTRA_TARGETS += run-tests
