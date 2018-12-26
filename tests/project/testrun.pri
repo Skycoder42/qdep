@@ -1,4 +1,8 @@
-QT += tests
+CONFIG += console
+CONFIG -= app_bundle
+
+HEADERS += tests.h
+INCLUDEPATH += $$PWD
 
 win32:!ReleaseBuild:!DebugBuild {
 	runtarget.target = run-tests

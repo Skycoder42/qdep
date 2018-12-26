@@ -1,6 +1,5 @@
 #include <QCoreApplication>
-#include <QtTest>
-#include <iostream>
+#include <tests.h>
 
 #include <simple.h>
 
@@ -10,6 +9,6 @@ int main(int argc, char **argv)
 
     Simple simple;
     simple.value = "Hello World";
-    QCOMPARE(simple.transform(), QString("hello world"));
+    COMPARE(simple.transform(), QStringLiteral("hello world"));
     return 0;
 }

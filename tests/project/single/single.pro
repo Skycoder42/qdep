@@ -3,8 +3,8 @@ TEMPLATE = app
 SOURCES += \
     main.cpp
 
-#REPO_BASE = file:///home/sky/Programming/QtLibraries/qdep/.git
-REPO_BASE = Skycoder42/qdep
+REPO_BASE = file:///home/sky/Programming/QtLibraries/qdep/.git
+#REPO_BASE = Skycoder42/qdep
 
 QDEP_DEPENDS += $${REPO_BASE}@master/tests/packages/basic/package1/package1.pri
 
@@ -13,7 +13,3 @@ QDEP_DEPENDS += $${REPO_BASE}@master/tests/packages/basic/package1/package1.pri
 include(../testrun.pri)
 
 !package1_included: error("!package1_included")
-!package2_included: error("!package2_included")
-!package3_included: error("!package3_included")
-!package4_included: error("!package4_included")
-!package5_included: error("!package5_included")
