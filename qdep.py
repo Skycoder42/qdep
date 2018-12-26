@@ -222,8 +222,9 @@ isEmpty(QDEP_PATH): QDEP_PATH = {}
 isEmpty(QDEP_VERSION): QDEP_VERSION = 1.0.0
 isEmpty(QDEP_CACHE_SCOPE): QDEP_CACHE_SCOPE = stash
 isEmpty(QDEP_TOOL) {{
-	QDEP_TOOL = $$shell_path($$QDEP_PATH) --qmake $$shell_quote($$QMAKE_QMAKE)
-	win32: QDEP_TOOL = python $$QDEP_TOOL
+	win32: QDEP_TOOL = python $$shell_quote($$QDEP_PATH)
+	else: QDEP_TOOL = $$shell_path($$QDEP_PATH)
+	QDEP_TOOL += --qmake $$shell_quote($$QMAKE_QMAKE)
 }}
 
 CONFIG += qdep_build
