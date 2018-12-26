@@ -55,6 +55,7 @@ win32:!ReleaseBuild:!DebugBuild {
 
 # qdep stats
 message("TARGET: $$TARGET")
+!qdep_build:error("qdep was loaded, but qdep_build config is not set")
 !isEmpty(__QDEP_REAL_DEPS_STACK):error("__QDEP_REAL_DEPS_STACK not empty: $$__QDEP_REAL_DEPS_STACK")
 message("__QDEP_REAL_DEPS: $$__QDEP_REAL_DEPS")
 message("__QDEP_INCLUDE_CACHE:")
