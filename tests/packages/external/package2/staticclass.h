@@ -1,7 +1,7 @@
 #ifndef STATICCLASS_H
 #define STATICCLASS_H
 
-class PACKAGE2_EXPORT StaticClass
+class StaticClass
 {
     int magicNumber();
 };

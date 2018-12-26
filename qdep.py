@@ -283,6 +283,8 @@ defineTest(qdepCollectDependencies) {{
 		!include($$dep): \\
 		error("Failed to include pri file $$dep")
 }}
+
+for(exp_define, QDEP_EXPORTS): DEFINES += $$exp_define
 """
 
 if __name__ == '__main__':
