@@ -1,3 +1,5 @@
+QT += tests
+
 win32:!ReleaseBuild:!DebugBuild {
 	runtarget.target = run-tests
 	runtarget.CONFIG = recursive
@@ -45,4 +47,13 @@ win32:!ReleaseBuild:!DebugBuild {
 		}
 		QMAKE_EXTRA_TARGETS += runtarget
 	}
+}
+
+# qdep stats
+message("__QDEP_REAL_DEPS_STACK: $$__QDEP_REAL_DEPS_STACK")
+message("__QDEP_REAL_DEPS: $$__QDEP_REAL_DEPS")
+message("__QDEP_INCLUDE_CACHE:")
+for(hash, __QDEP_INCLUDE_CACHE) {
+    message("    $${hash}.package: $$first($${hash}.package)")
+    message("    $${hash}.version: $$first($${hash}.version)")
 }
