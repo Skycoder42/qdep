@@ -3,8 +3,9 @@ A very basic yet simple to use dependency management tool for qmake based projec
 
 ## vardump
 - prf: qdep (explicit load)
-- vars: QDEP_PATH, QDEP_VERSION, QDEP_CACHE_SCOPE, QDEP_TOOL, QDEP_DEPENDS
-- config: qdep_no_cache, qdep_build
+- vars: QDEP_PATH, QDEP_VERSION, QDEP_CACHE_SCOPE, QDEP_TOOL, QDEP_DEPENDS, QDEP_LINK_DEPENDS
+- config(in): qdep_no_cache, qdep_no_link
+- config(out): qdep_build
 - tests: qdepCollectDependencies
 - replaces: 
 - private:

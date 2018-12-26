@@ -1,0 +1,2 @@
+CONFIG += package2_included
+DEFINES += PACKAGE2_DEFINED

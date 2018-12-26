@@ -1,0 +1,2 @@
+CONFIG += package4_included
+DEFINES += PACKAGE4_DEFINED
