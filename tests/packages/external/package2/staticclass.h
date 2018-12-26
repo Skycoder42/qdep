@@ -1,11 +1,7 @@
 #ifndef STATICCLASS_H
 #define STATICCLASS_H
 
-#ifdef PACKAGE2_EXPORT
-#error PACKAGE2_EXPORT
-#endif
-
-class PACKAGE2_EXPORT StaticClass
+class RANDOM_STRING StaticClass
 {
     int magicNumber();
 };
