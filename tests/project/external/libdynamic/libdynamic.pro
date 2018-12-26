@@ -1,7 +1,15 @@
 TEMPLATE = lib
 
+DEFINES += LIBDYNAMIC_BUILD
+
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package4/package4.pri
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package5/package5.pri
+
+HEADERS += libdynamic.h
+
+SOURCES += libdynamic.cpp
+
+CONFIG += qdep_export_all
 
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !load(qdep):error("Failed to load qdep feature")
