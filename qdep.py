@@ -235,15 +235,19 @@ isEmpty(QDEP_TOOL) {{
 
 CONFIG += qdep_build
 
+# The primary dependecy collector function
 defineTest(qdepCollectDependencies) {{
+	# transform all dependencies into unique hashes
 	qdep_dependencies = 
 	for(arg, ARGS): qdep_dependencies += $$shell_quote($$arg)
 	qdep_hashes = $$system($$QDEP_TOOL dephash $$qdep_dependencies, lines, qdep_ok)
 	!equals(qdep_ok, 0):return(false)
 	
 	for(dep_hash, qdep_hashes) {{
+		# handle each dependency, but each package only once
 		dep_pkg = $$take_first(ARGS)		
 		!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
+			# Install the sources and extract some parameters
 			dep_data = $$system($$QDEP_TOOL pri-resolve $$dep_pkg $$shell_quote($$first($${{dep_hash}}.version)), lines, qdep_ok)
 			!equals(qdep_ok, 0):return(false)
 			!equals(dep_hash, $$take_first(dep_data)):error("Cricital internal error: dependencies out of sync"):return(false)
@@ -259,14 +263,17 @@ defineTest(qdepCollectDependencies) {{
 			__QDEP_INCLUDE_CACHE += $$dep_hash
 			export(__QDEP_INCLUDE_CACHE)
 			
+			# Cache the package version for dependencies with undetermined versions
 			!qdep_no_cache:equals(dep_needs_cache, True):!cache($${{dep_hash}}.version, set $$QDEP_CACHE_SCOPE):warning("Failed to cache package version for $$dep_pkg")
 			
+			# Find all dependencies that package depends on and call this method recursively for those
 			sub_deps = $$fromfile($$dep_path, QDEP_DEPENDS)
 			__QDEP_REAL_DEPS_STACK += $$dep_path			
 			!isEmpty(sub_deps):!qdepCollectDependencies($$sub_deps):return(false)			
 			__QDEP_REAL_DEPS += $$take_last(__QDEP_REAL_DEPS_STACK)
 			export(__QDEP_REAL_DEPS)
 			
+			# Handle all defines for symbol exports, if specified
 			sub_exports = $$fromfile($$dep_path, QDEP_PACKAGE_EXPORTS)
 			qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg): \\
 				for(sub_export, sub_exports): \\
@@ -283,6 +290,7 @@ defineTest(qdepCollectDependencies) {{
 	return(true)
 }}
 
+# Collect all dependencies and then include them
 !isEmpty(QDEP_DEPENDS): {{
 	!qdepCollectDependencies($$QDEP_DEPENDS):error("Failed to collect all dependencies")
 	else: \\
