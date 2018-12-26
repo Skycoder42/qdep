@@ -68,7 +68,11 @@ def get_override_map():
 	return or_map
 
 
-def package_resolve(package, suffix=".pri"):
+def pkg_hash(pkg_url, pkg_path):
+	return "__QDEP_PKG_" + hashlib.sha3_512((pkg_url + pkg_path).encode("UTF-8")).hexdigest()
+
+
+def package_resolve(package, pkg_version=None, suffix=".pri"):
 	pattern = re.compile(r'^(?:([^@\/]+\/[^@\/]+)|(\w+:\/\/.*\.git|[^@:]*@[^@]*:[^@]+\.git))(?:@([^\/\s]+)(\/.*)?)?$')
 	path_pattern = re.compile(r'^.*\/([^\/]+)\.git$')
 
@@ -87,6 +91,8 @@ def package_resolve(package, suffix=".pri"):
 	# extract branch
 	if match.group(3) is not None:
 		pkg_branch = match.group(3)
+	elif pkg_version is not None:
+		pkg_branch = pkg_version
 	else:
 		pkg_branch = None
 
@@ -127,12 +133,14 @@ def get_sources(pkg_url, pkg_branch):
 	try:
 		needs_ro = False
 		if path.isdir(path.join(cache_dir, ".git")):
-			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL)
-			if head_ref_res.returncode == 0:
+			if not path.exists(path.join(cache_dir, ".qdep_static_branch")):
 				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--recurse-submodules"], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
 				needs_ro = True
 		else:
 			subprocess.run(["git", "clone", "--recurse-submodules", "--shallow-submodules", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
+			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			if head_ref_res.returncode != 0:
+				open(path.join(cache_dir, ".qdep_static_branch"), 'a').close()
 			needs_ro = True
 
 		if needs_ro:
@@ -151,7 +159,7 @@ def get_sources(pkg_url, pkg_branch):
 		locker.release()
 
 	git_repo_cache.add(cache_dir)
-	return cache_dir
+	return cache_dir, pkg_branch
 
 
 def prfgen(arguments):
@@ -166,14 +174,27 @@ def prfgen(arguments):
 
 def pri_resolve(arguments):
 	ov_map = get_override_map()
+	package = arguments.input[0]
+	pkg_version = arguments.input[1] if len(arguments.input[1]) > 0 else None
+
+	pkg_url, pkg_branch, pkg_path = package_resolve(package, pkg_version=pkg_version)
+	needs_cache = pkg_branch is None
+	if pkg_url in ov_map:
+		pkg_base = ov_map[pkg_url]
+	else:
+		pkg_base, pkg_branch = get_sources(pkg_url, pkg_branch)
+	pkg_base = os.path.join(pkg_base, pkg_path[1:])
+	print(pkg_hash(pkg_url, pkg_path))
+	print(pkg_branch)
+	print(pkg_base)
+	print(needs_cache)
+	return 0
+
+
+def dephash(arguments):
 	for package in arguments.input:
 		pkg_url, pkg_branch, pkg_path = package_resolve(package)
-		if pkg_url in ov_map:
-			pkg_base = ov_map[pkg_url]
-		else:
-			pkg_base = get_sources(pkg_url, pkg_branch)
-		pkg_base = os.path.join(pkg_base, pkg_path[1:])
-		print(hashlib.sha3_512((pkg_url + pkg_path).encode("UTF-8")).hexdigest(), pkg_branch, pkg_base)
+		print(pkg_hash(pkg_url, pkg_path))
 	return 0
 
 
@@ -181,12 +202,14 @@ def main():
 	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects")
 	parser.add_argument("-v", "--version", action="version", version='%(prog)s 1.0')
 	parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for")
-	parser.add_argument("operation", action="store", choices=["prfgen", "pri-resolve"], metavar="operation", help="Specify the operation that should be performed by qdep")
+	parser.add_argument("operation", action="store", choices=["prfgen", "dephash", "pri-resolve"], metavar="operation", help="Specify the operation that should be performed by qdep")
 	parser.add_argument("input", action="store", nargs="*", metavar="packages", help="Package descriptors to be processed by qdep")
 
 	res = parser.parse_args()
 	if res.operation == "prfgen":
 		result = prfgen(res)
+	elif res.operation == "dephash":
+		result = dephash(res)
 	elif res.operation == "pri-resolve":
 		result = pri_resolve(res)
 	else:
@@ -205,16 +228,20 @@ isEmpty(QDEP_TOOL) {{
 defineTest(qdepCollectDependencies) {{
 	qdep_dependencies = 
 	for(arg, ARGS): qdep_dependencies += $$shell_quote($$arg)
-	qdep_paths = $$system($$QDEP_PATH pri-resolve $$qdep_dependencies, lines, qdep_ok)
+	qdep_hashes = $$system($$QDEP_TOOL dephash $$qdep_dependencies, lines, qdep_ok)
 	!equals(qdep_ok, 0):return(false)
 	
-	for(dep, qdep_paths) {{
-		dep_pkg = $$take_first(ARGS)
-		dep_parts = $$split(dep, " ")
-		dep_hash = $$take_first(dep_parts)
-		dep_version = $$take_first(dep_parts)
-		
+	for(dep_hash, qdep_hashes) {{
+		dep_pkg = $$take_first(ARGS)		
 		!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
+			dep_data = $$system($$QDEP_TOOL pri-resolve $$dep_pkg $$shell_quote($$first($${{dep_hash}}.version)), lines, qdep_ok)
+			!equals(qdep_ok, 0):return(false)
+			!equals(dep_hash, $$take_first(dep_data)):error("Cricital internal error: dependencies out of sync"):return(false)
+			
+			dep_version = $$take_first(dep_data)
+			dep_path = $$take_first(dep_data)
+			dep_needs_cache = $$take_first(dep_data)
+		
 			$${{dep_hash}}.package = $$dep_pkg
 			$${{dep_hash}}.version = $$dep_version
 			export($${{dep_hash}}.package)
@@ -222,7 +249,8 @@ defineTest(qdepCollectDependencies) {{
 			__QDEP_INCLUDE_CACHE += $$dep_hash
 			export(__QDEP_INCLUDE_CACHE)
 			
-			dep_path = $$join(dep_parts, " ")
+			equals(dep_needs_cache, True):!cache($${{dep_hash}}.version, set stash):warning("Failed to cache package version for $$dep_pkg")
+			
 			sub_deps = $$fromfile($$dep_path, QDEP_DEPENDS)
 			__QDEP_REAL_DEPS_STACK += $$dep_path
 			
