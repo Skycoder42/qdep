@@ -232,6 +232,7 @@ isEmpty(QDEP_TOOL) {{
 	qdep_no_pull: QDEP_TOOL += --no-pull
 	qdep_no_clone: QDEP_TOOL += --no-clone
 }}
+isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "---"
 
 CONFIG += qdep_build
 
@@ -276,12 +277,14 @@ defineTest(qdepCollectDependencies) {{
 			# Handle all defines for symbol exports, if specified
 			sub_exports = $$fromfile($$dep_path, QDEP_PACKAGE_EXPORTS)
 			qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg): \\
-				for(sub_export, sub_exports): \\
-				DEFINES += "$${{sub_export}}=Q_DECL_EXPORT"
-			else: \\
+				for(sub_export, sub_exports) {{
+					DEFINES += "$${{sub_export}}=Q_DECL_EXPORT"
+					__QDEP_ACTIVE_EXPORTS += $$sub_export
+			}} else: \\
 				for(sub_export, sub_exports): \\
 				DEFINES += "$${{sub_export}}="
 			export(DEFINES)
+			export(__QDEP_ACTIVE_EXPORTS)
 		}} else: \\
 			!equals(dep_version, $$first($${{dep_hash}}.version)): \\
 			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${{dep_hash}}.package)\\" is used, and version \\"$$dep_version\\" was detected.")
@@ -289,6 +292,71 @@ defineTest(qdepCollectDependencies) {{
 	
 	return(true)
 }}
+
+# A function to get includepath, defines and others from indirect dependencies
+defineTest(qdepCollectLinkDependencies) {{
+	for(link_proj, ARGS) {{
+		# get all dependencies from the link project and the corresponding internal stuff
+		proj_path = $$absolute_path($$link_proj, $$_PRO_FILE_PWD_)
+		link_depends = $$fromfile($$proj_path, __QDEP_PRIVATE_VARS_EXPORT)
+		!qdepSplitPrivateVar(__qdep_tmp_priv_vars, $$link_depends)
+		message("real_deps $${{__qdep_tmp_priv_vars.real_deps}}")
+		message("include_cache $${{__qdep_tmp_priv_vars.include_cache}}")
+		
+		# update project vars from extracted stuff
+		for(dep_import, $${{__qdep_tmp_priv_vars.active_exports}}): DEFINES += "$${{dep_import}}=Q_DECL_IMPORT"
+		DEFINES += $${{__qdep_tmp_priv_vars.defines}}
+		export(DEFINES)
+		INCLUDEPATH += $$dirname($$proj_path)
+		INCLUDEPATH += $${{__qdep_tmp_priv_vars.includepath}}
+		export(INCLUDEPATH)
+	}}
+
+	return(true)
+}}
+
+# Combines all private qdep vars into one super variable to speed up imports
+defineReplace(qdepJoinPrivateVar) {{
+	for(dep, __QDEP_INCLUDE_CACHE): include_dep_tuples += $$dep $$first($${{dep}}.package) $$first($${{dep}}.version)
+	return($$__QDEP_REAL_DEPS $$__QDEP_PRIVATE_SEPERATOR $$include_dep_tuples $$__QDEP_PRIVATE_SEPERATOR $$__QDEP_ACTIVE_EXPORTS $$__QDEP_PRIVATE_SEPERATOR $$QDEP_DEFINES $$__QDEP_PRIVATE_SEPERATOR $$QDEP_INCLUDEPATH)
+}}
+
+# Split previously concatenated qdep vars into the ones passed to the function
+defineTest(qdepSplitPrivateVar) {{
+	out_var = $$take_first(ARGS)
+	state_list = real_deps include_cache active_exports defines includepath
+	state = $$take_first(state_list)
+	inc_state = hash
+	$${{out_var}}.$${{state}} = 
+	for(arg, ARGS) {{
+		equals(arg, $$__QDEP_PRIVATE_SEPERATOR) {{
+			export($${{out_var}}.$${{state}})
+			state = $$take_first(state_list)
+			$${{out_var}}.$${{state}} = 
+		}} else:equals(state, include_cache) {{
+			equals(inc_state, hash) {{
+				$${{out_var}}.$${{state}} += $$arg
+				current_hash = $$arg
+				inc_state = package
+			}} else:equals(inc_state, package) {{
+				$${{current_hash}}.package = $$arg
+				export($${{current_hash}}.package)
+				inc_state = version
+			}} else:equals(inc_state, version) {{
+				$${{current_hash}}.version = $$arg
+				export($${{current_hash}}.version)
+				inc_state = hash
+			}} else:return(false)
+		}} else: $${{out_var}}.$${{state}} += $$arg
+	}}
+	export($${{out_var}}.$${{state}})	
+	return(true)
+}}
+
+# First collect all indirect dependencies
+!isEmpty(QDEP_LINK_DEPENDS): \\
+	!qdepCollectLinkDependencies($$QDEP_LINK_DEPENDS): \\
+	error("Failed to resolve all QDEP_LINK_DEPENDS")
 
 # Collect all dependencies and then include them
 !isEmpty(QDEP_DEPENDS): {{
@@ -298,6 +366,12 @@ defineTest(qdepCollectDependencies) {{
 		!include($$dep): \\
 		error("Failed to include pri file $$dep")
 }}
+
+DEFINES += $$QDEP_DEFINES
+INCLUDEPATH += $$QDEP_INCLUDEPATH
+
+# Join private vars
+__QDEP_PRIVATE_VARS_EXPORT = $$qdepJoinPrivateVar()
 """
 
 if __name__ == '__main__':

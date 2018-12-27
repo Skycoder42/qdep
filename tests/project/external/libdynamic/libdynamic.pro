@@ -5,6 +5,9 @@ DEFINES += LIBDYNAMIC_BUILD
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package4/package4.pri
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package5/package5.pri
 
+QDEP_DEFINES += LIBDYNAMIC_TEST
+QDEP_INCLUDEPATH += $$PWD/extra
+
 HEADERS += libdynamic.h
 
 SOURCES += libdynamic.cpp

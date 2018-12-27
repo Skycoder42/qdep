@@ -65,3 +65,5 @@ for(hash, __QDEP_INCLUDE_CACHE) {
     message("    $${hash}.package: $$first($${hash}.package)")
     message("    $${hash}.version: $$first($${hash}.version)")
 }
+message("__QDEP_ACTIVE_EXPORTS: $$__QDEP_ACTIVE_EXPORTS")
+message("__QDEP_PRIVATE_VARS_EXPORT: $$__QDEP_PRIVATE_VARS_EXPORT")

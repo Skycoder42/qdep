@@ -7,7 +7,7 @@ QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package1/package1
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package3/package3.pri
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package5/package5.pri
 
-QDEP_LINK_DEPENDS += ../libstatic ../libdynamic
+QDEP_LINK_DEPENDS += ../libstatic/libstatic.pro ../libdynamic/libdynamic.pro
 #CONFIG += qdep_no_link
 
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
