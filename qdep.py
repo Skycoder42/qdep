@@ -311,6 +311,8 @@ defineTest(qdepCollectLinkDependencies) {{
 			!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
 				DEFINES += $$fromfile($$first($${{dep_hash}}.path), DEFINES)
 				INCLUDEPATH += $$fromfile($$first($${{dep_hash}}.path), INCLUDEPATH)
+				qdep_extra_vars = $$fromfile($$first($${{dep_hash}}.path), QDEP_VAR_EXPORTS)
+				for(extra_var, qdep_extra_vars): $${{extra_var}} += $$fromfile($$first($${{dep_hash}}.path), $${{extra_var}})
 			
 				# Handle all defines for symbol exports, if specified
 				sub_exports = $$fromfile($$first($${{dep_hash}}.path), QDEP_PACKAGE_EXPORTS)
