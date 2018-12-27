@@ -1,7 +1,9 @@
 #ifndef EXTRA_STA_H
 #define EXTRA_STA_H
 
+#include <utility>
+
 template <typename T>
-void dummy_sta(T &&data) {}
+T dummy_sta(T &&data) { return std::move(data); }
 
 #endif

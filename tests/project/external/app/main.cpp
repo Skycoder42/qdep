@@ -12,15 +12,15 @@ int main(int argc, char **argv)
     QCoreApplication app{argc, argv};
 
     LibStatic stat;
-    COMPARE(stat.magicNumber(), 422)
-    COMPARE(stat.magicFraction(), 0.42)
+    COMPARE(stat.magicNumber(), 422);
+    COMPARE(stat.magicFraction(), 0.42);
 
     LibDynamic dyna;
-    COMPARE(dyna.magicNumber(), 425)
-    COMPARE(dyna.magicFraction(), 0.24)
+    COMPARE(dyna.magicNumber(), 425);
+    COMPARE(dyna.magicFraction(), 0.24);
 
-    dummy_sta<int>(42);
-    dummy_dyn<int>(42);
+    COMPARE(dummy_sta<int>(42), 42);
+    COMPARE(dummy_dyn<int>(42), 42);
 
     return 0;
 }
