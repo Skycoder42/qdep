@@ -5,6 +5,7 @@
 
 class LibStatic : public StaticClass
 {
+public:
     double magicFraction();
 };
 

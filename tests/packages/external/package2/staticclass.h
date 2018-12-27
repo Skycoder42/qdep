@@ -5,6 +5,7 @@
 
 class PACKAGE2_EXPORT StaticClass
 {
+public:
     int magicNumber();
 };
 

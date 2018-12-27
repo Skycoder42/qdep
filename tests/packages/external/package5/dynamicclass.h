@@ -5,6 +5,7 @@
 
 class PACKAGE5_EXPORT DynamicClass
 {
+public:
     int magicNumber();
 };
 

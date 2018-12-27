@@ -12,6 +12,7 @@
 
 class LIBDYNAMIC_EXPORT LibDynamic : public DynamicClass
 {
+public:
     double magicFraction();
 };
 

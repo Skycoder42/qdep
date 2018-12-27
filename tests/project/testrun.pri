@@ -65,6 +65,7 @@ for(hash, __QDEP_INCLUDE_CACHE) {
     message("    $${hash}.version: $$first($${hash}.version)")
     message("    $${hash}.path: $$first($${hash}.path)")
     message("    $${hash}.exports: $$first($${hash}.exports)")
+    message("    $${hash}.local: $$first($${hash}.local)")
 }
 message("QDEP_DEFINES: $$QDEP_DEFINES")
 message("DEFINES: $$DEFINES")

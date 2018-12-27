@@ -262,9 +262,11 @@ defineTest(qdepCollectDependencies) {{
 			$${{dep_hash}}.version = $$dep_version
 			$${{dep_hash}}.path = $$dep_path
 			$${{dep_hash}}.exports = 
+			$${{dep_hash}}.local = 1
 			export($${{dep_hash}}.package)
 			export($${{dep_hash}}.version)
 			export($${{dep_hash}}.path)
+			export($${{dep_hash}}.local)
 			
 			# Cache the package version for dependencies with undetermined versions
 			!qdep_no_cache:equals(dep_needs_cache, True):!cache($${{dep_hash}}.version, set $$QDEP_CACHE_SCOPE):warning("Failed to cache package version for $$dep_pkg")
@@ -305,14 +307,17 @@ defineTest(qdepCollectLinkDependencies) {{
 		
 		# update project vars from extracted stuff
 		DEFINES += $${{__qdep_tmp_priv_vars.defines}}
-		INCLUDEPATH += $$dirname($$proj_path)
+		INCLUDEPATH += $$dirname(proj_path)
 		INCLUDEPATH += $${{__qdep_tmp_priv_vars.includepath}}
 		for(dep_hash, __qdep_tmp_priv_vars.include_cache) {{
 			!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
 				DEFINES += $$fromfile($$first($${{dep_hash}}.path), DEFINES)
 				INCLUDEPATH += $$fromfile($$first($${{dep_hash}}.path), INCLUDEPATH)
 				qdep_extra_vars = $$fromfile($$first($${{dep_hash}}.path), QDEP_VAR_EXPORTS)
-				for(extra_var, qdep_extra_vars): $${{extra_var}} += $$fromfile($$first($${{dep_hash}}.path), $${{extra_var}})
+				for(extra_var, qdep_extra_vars) {{
+					$${{extra_var}} += $$fromfile($$first($${{dep_hash}}.path), $${{extra_var}})
+					export($${{extra_var}})
+				}}
 			
 				# Handle all defines for symbol exports, if specified
 				sub_exports = $$fromfile($$first($${{dep_hash}}.path), QDEP_PACKAGE_EXPORTS)
@@ -321,6 +326,8 @@ defineTest(qdepCollectLinkDependencies) {{
 					else: DEFINES += "$${{sub_export}}="
 				}}
 				
+				$${{dep_hash}}.local = 0
+				export($${{dep_hash}}.local)
 				__QDEP_INCLUDE_CACHE += $$dep_hash
 			}}
 		}}
@@ -393,6 +400,7 @@ defineTest(qdepSplitPrivateVar) {{
 	!qdepCollectDependencies($$QDEP_DEPENDS):error("Failed to collect all dependencies")
 	else: \\
 		for(dep, __QDEP_INCLUDE_CACHE): \\
+		equals($${{dep}}.local, 1): \\
 		!include($$first($${{dep}}.path)): \\
 		error("Failed to include pri file $$dep")
 }}
