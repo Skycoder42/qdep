@@ -14,6 +14,7 @@ HEADERS += libdynamic.h
 
 SOURCES += libdynamic.cpp
 
+#CONFIG += qdep_export
 CONFIG += qdep_export_all
 
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test

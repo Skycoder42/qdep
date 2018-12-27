@@ -232,6 +232,7 @@ isEmpty(QDEP_TOOL) {{
 	qdep_no_pull: QDEP_TOOL += --no-pull
 	qdep_no_clone: QDEP_TOOL += --no-clone
 }}
+isEmpty(QDEP_EXPORT_FILE): QDEP_EXPORT_FILE = $$shadowed($$absolute_path($$lower("$${{TARGET}}_export.pri"), $$_PRO_FILE_PWD_))
 isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "==="
 isEmpty(__QDEP_TUPLE_SEPERATOR): __QDEP_TUPLE_SEPERATOR = "---"
 
@@ -280,14 +281,18 @@ defineTest(qdepCollectDependencies) {{
 			
 			# Handle all defines for symbol exports, if specified
 			sub_exports = $$fromfile($$dep_path, QDEP_PACKAGE_EXPORTS)
-			qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg): \\
+			
+			!static:!staticlib: \\
+				qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg): \\
 				for(sub_export, sub_exports) {{
 					DEFINES += "$${{sub_export}}=Q_DECL_EXPORT"
+					QDEP_EXPORTED_DEFINES += "$${{sub_export}}=Q_DECL_IMPORT"
 					$${{dep_hash}}.exports += $$sub_export
 			}} else: \\
 				for(sub_export, sub_exports): \\
 				DEFINES += "$${{sub_export}}="
 			export(DEFINES)
+			export(QDEP_EXPORTED_DEFINES)
 			export($${{dep_hash}}.exports)
 		}} else: \\
 			!equals(dep_version, $$first($${{dep_hash}}.version)): \\
@@ -295,6 +300,16 @@ defineTest(qdepCollectDependencies) {{
 	}}
 	
 	return(true)
+}}
+
+# A function to create a pri file to include the library and all exported
+defineTest(qdepCreateExportPri) {{	
+	out_file_data = 
+	out_file_data += "DEFINES += $$QDEP_EXPORTED_DEFINES $$QDEP_DEFINES"
+	out_file_data += "INCLUDEPATH += $$QDEP_EXPORTED_INCLUDEPATH $$QDEP_INCLUDEPATH"
+	for(exp_var, QDEP_VAR_EXPORTS): out_file_data += "$$exp_var += $$member($$exp_var, 0, -1)"
+	write_file($$first(ARGS), out_file_data):return(true)
+	else:return(false)
 }}
 
 # A function to get includepath, defines and others from indirect dependencies
@@ -417,19 +432,28 @@ defineTest(qdepSplitPrivateVar) {{
 }}
 
 # First collect all indirect dependencies
-!isEmpty(QDEP_LINK_DEPENDS): \\
-	!qdepCollectLinkDependencies($$QDEP_LINK_DEPENDS): \\
-	error("Failed to resolve all QDEP_LINK_DEPENDS")
+#!isEmpty(QDEP_LINK_DEPENDS): \\
+#	!qdepCollectLinkDependencies($$QDEP_LINK_DEPENDS): \\
+#	error("Failed to resolve all QDEP_LINK_DEPENDS")
 
 # Collect all dependencies and then include them
 !isEmpty(QDEP_DEPENDS): {{
 	!qdepCollectDependencies($$QDEP_DEPENDS):error("Failed to collect all dependencies")
-	else: \\
-		for(dep, __QDEP_INCLUDE_CACHE): \\
-		equals($${{dep}}.local, 1): \\
-		!include($$first($${{dep}}.path)): \\
-		error("Failed to include pri file $$dep")
+	else:for(dep, __QDEP_INCLUDE_CACHE) {{
+		__qdep_define_offset = $$size(DEFINES)
+		__qdep_include_offset = $$size(INCLUDEPATH)
+		equals($${{dep}}.local, 1):include($$first($${{dep}}.path)) {{
+			qdep_export_all|contains(QDEP_EXPORTS, $$first($${{dep}}.package)) {{
+				QDEP_EXPORTED_DEFINES += $$member(DEFINES, $$__qdep_define_offset, -1)
+				export(QDEP_EXPORTED_DEFINES)
+				QDEP_EXPORTED_INCLUDEPATH += $$member(INCLUDEPATH, $$__qdep_include_offset, -1)
+				export(QDEP_EXPORTED_INCLUDEPATH)
+			}}
+		}} else:error("Failed to include pri file $$dep")
+	}}
 }}
+
+qdep_export_all|!isEmpty(QDEP_EXPORTS):!qdepCreateExportPri($$QDEP_EXPORT_FILE):error("Failed to create export file $$QDEP_EXPORT_FILE")
 
 DEFINES += $$QDEP_DEFINES
 INCLUDEPATH += $$QDEP_INCLUDEPATH
