@@ -282,14 +282,16 @@ defineTest(qdepCollectDependencies) {{
 			# Handle all defines for symbol exports, if specified
 			sub_exports = $$fromfile($$dep_path, QDEP_PACKAGE_EXPORTS)
 			
-			!static:!staticlib: \\
-				qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg): \\
-				for(sub_export, sub_exports) {{
+			qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg) {{
+				!static:!staticlib:for(sub_export, sub_exports) {{
 					DEFINES += "$${{sub_export}}=Q_DECL_EXPORT"
 					QDEP_EXPORTED_DEFINES += "$${{sub_export}}=Q_DECL_IMPORT"
 					$${{dep_hash}}.exports += $$sub_export
-			}} else: \\
-				for(sub_export, sub_exports): \\
+				}} else:for(sub_export, sub_exports) {{
+					DEFINES += "$${{sub_export}}="
+					QDEP_EXPORTED_DEFINES += "$${{sub_export}}="
+				}}
+			}} else:for(sub_export, sub_exports): \\
 				DEFINES += "$${{sub_export}}="
 			export(DEFINES)
 			export(QDEP_EXPORTED_DEFINES)
@@ -302,164 +304,88 @@ defineTest(qdepCollectDependencies) {{
 	return(true)
 }}
 
+defineReplace(qdepOutQuote) {{
+	result = 
+	var_name = $$1
+	for(value, 2): result += "$$var_name += $${{LITERAL_DOLLAR}}$${{LITERAL_DOLLAR}}quote($$value)"
+	return($$result)
+}}
+
 # A function to create a pri file to include the library and all exported
-defineTest(qdepCreateExportPri) {{	
+defineTest(qdepCreateExportPri) {{
+	# write basic variables
 	out_file_data = 
-	out_file_data += "DEFINES += $$QDEP_EXPORTED_DEFINES $$QDEP_DEFINES"
-	out_file_data += "INCLUDEPATH += $$QDEP_EXPORTED_INCLUDEPATH $$QDEP_INCLUDEPATH"
-	for(exp_var, QDEP_VAR_EXPORTS): out_file_data += "$$exp_var += $$member($$exp_var, 0, -1)"
+	out_file_data += $$qdepOutQuote(DEFINES, $$QDEP_EXPORTED_DEFINES $$QDEP_DEFINES)
+	out_file_data += $$qdepOutQuote(INCLUDEPATH, $$QDEP_EXPORTED_INCLUDEPATH $$QDEP_INCLUDEPATH)
+	for(exp_var_key, QDEP_VAR_EXPORTS): out_file_data += $$qdepOutQuote($$exp_var_key, $$eval($$exp_var_key))
+	
+	# write package cache
+	for(dep_hash, __QDEP_INCLUDE_CACHE) {{
+		out_file_data += $$qdepOutQuote($${{dep_hash}}.package, $$eval($${{dep_hash}}.package))
+		out_file_data += $$qdepOutQuote($${{dep_hash}}.version, $$eval($${{dep_hash}}.version))
+		out_file_data += $$qdepOutQuote($${{dep_hash}}.path, $$eval($${{dep_hash}}.path))
+		out_file_data += $$qdepOutQuote($${{dep_hash}}.exports, $$eval($${{dep_hash}}.exports))
+		out_file_data += $$qdepOutQuote($${{dep_hash}}.local, 0)
+		out_file_data += $$qdepOutQuote(__QDEP_INCLUDE_CACHE, $$dep_hash)
+	}}
+	
+	# write library linkage
+	!qdep_no_link {{
+		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
+		
+		out_libdir = $$shadowed($$_PRO_FILE_PWD_)
+		win32:CONFIG(release, debug|release): out_file_data += $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/release/")
+		else:win32:CONFIG(debug, debug|release): out_file_data += $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/debug/")
+		else:unix: out_file_data += $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/")
+		out_file_data += $$qdepOutQuote(LIBS, "-l$${{TARGET}}")
+		
+		static|staticlib {{
+			out_file_data += $$qdepOutQuote(DEPENDPATH, $$_PRO_FILE_PWD_)
+			
+			win32-g++:CONFIG(release, debug|release): out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/release/lib$${{TARGET}}.a")
+			else:win32-g++:CONFIG(debug, debug|release): out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/debug/lib$${{TARGET}}.a")
+			else:win32:!win32-g++:CONFIG(release, debug|release): out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/release/$${{TARGET}}.lib")
+			else:win32:!win32-g++:CONFIG(debug, debug|release): out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/debug/$${{TARGET}}.lib")
+			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/lib$${{TARGET}}.a")
+		}}
+	}}
+	
 	write_file($$first(ARGS), out_file_data):return(true)
 	else:return(false)
 }}
 
-# A function to get includepath, defines and others from indirect dependencies
-defineTest(qdepCollectLinkDependencies) {{
-	for(link_proj, ARGS) {{
-		# get all dependencies from the link project and the corresponding internal stuff
-		proj_path = $$absolute_path($$link_proj, $$_PRO_FILE_PWD_)
-		link_depends = $$fromfile($$proj_path, __QDEP_PRIVATE_VARS_EXPORT)
-		!qdepSplitPrivateVar(__qdep_tmp_priv_vars, $$link_depends)
-		
-		# update project vars from extracted stuff
-		DEFINES += $${{__qdep_tmp_priv_vars.defines}}
-		INCLUDEPATH += $${{__qdep_tmp_priv_vars.includepath}}
-		for(dep_hash, __qdep_tmp_priv_vars.include_cache) {{
-			!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
-				DEFINES += $$fromfile($$first($${{dep_hash}}.path), DEFINES)
-				INCLUDEPATH += $$fromfile($$first($${{dep_hash}}.path), INCLUDEPATH)
-				qdep_extra_vars = $$fromfile($$first($${{dep_hash}}.path), QDEP_VAR_EXPORTS)
-				for(extra_var, qdep_extra_vars) {{
-					$${{extra_var}} += $$fromfile($$first($${{dep_hash}}.path), $${{extra_var}})
-					export($${{extra_var}})
-				}}
-			
-				# Handle all defines for symbol exports, if specified
-				sub_exports = $$fromfile($$first($${{dep_hash}}.path), QDEP_PACKAGE_EXPORTS)
-				for(sub_export, sub_exports) {{
-					contains($${{dep_hash}}.exports, $$sub_export): DEFINES += "$${{sub_export}}=Q_DECL_IMPORT"
-					else: DEFINES += "$${{sub_export}}="
-				}}
-				
-				$${{dep_hash}}.local = 0
-				export($${{dep_hash}}.local)
-				__QDEP_INCLUDE_CACHE += $$dep_hash
-			}}
-		}}
-		export(DEFINES)
-		export(INCLUDEPATH)
-		export(__QDEP_INCLUDE_CACHE)
-		
-		# link the library, if not disabled
-		!qdep_no_link {{
-			INCLUDEPATH += $$dirname(proj_path)
-			export(INCLUDEPATH)
-			
-			out_libdir = $$shadowed($$dirname(proj_path))
-			win32:CONFIG(release, debug|release): LIBS += "-L$${{out_libdir}}/release/"
-			else:win32:CONFIG(debug, debug|release): LIBS += "-L$${{out_libdir}}/debug/"
-			else:unix: LIBS += "-L$${{out_libdir}}/"
-			LIBS += "-l$${{__qdep_tmp_priv_vars.target}}"
-			export(LIBS)
-			
-			!equals(__qdep_tmp_priv_vars.is_dynamic, 1) {{
-				DEPENDPATH += $$dirname(proj_path)
-				export(DEPENDPATH)
-				
-				win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $${{out_libdir}}/release/lib$${{__qdep_tmp_priv_vars.target}}.a
-				else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $${{out_libdir}}/debug/lib$${{__qdep_tmp_priv_vars.target}}.a
-				else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $${{out_libdir}}/release/$${{__qdep_tmp_priv_vars.target}}.lib
-				else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $${{out_libdir}}/debug/$${{__qdep_tmp_priv_vars.target}}.lib
-				else:unix: PRE_TARGETDEPS += $${{out_libdir}}/lib$${{__qdep_tmp_priv_vars.target}}.a
-				export(PRE_TARGETDEPS)
-			}}
-		}}
-	}}
-
-	return(true)
-}}
-
-# Combines all private qdep vars into one super variable to speed up imports
-defineReplace(qdepJoinPrivateVar) {{
-	for(dep, __QDEP_INCLUDE_CACHE) {{
-		include_dep_tuples += $$dep $$first($${{dep}}.package) $$first($${{dep}}.version) $$first($${{dep}}.path)
-		for(exp,  $${{dep}}.exports): include_dep_tuples += $$exp
-		include_dep_tuples += $$__QDEP_TUPLE_SEPERATOR
-	}}
-	static|staticlib: qdep_is_dynamic = 0
-	else: qdep_is_dynamic = 1
-	return($$include_dep_tuples $$__QDEP_PRIVATE_SEPERATOR $$QDEP_DEFINES $$__QDEP_PRIVATE_SEPERATOR $$QDEP_INCLUDEPATH $$__QDEP_PRIVATE_SEPERATOR $$TARGET $$__QDEP_PRIVATE_SEPERATOR $$qdep_is_dynamic)
-}}
-
-# Split previously concatenated qdep vars into the ones passed to the function
-defineTest(qdepSplitPrivateVar) {{
-	out_var = $$take_first(ARGS)
-	state_list = include_cache defines includepath target is_dynamic
-	state = $$take_first(state_list)
-	inc_state = hash
-	$${{out_var}}.$${{state}} = 
-	for(arg, ARGS) {{
-		equals(arg, $$__QDEP_PRIVATE_SEPERATOR) {{
-			export($${{out_var}}.$${{state}})
-			state = $$take_first(state_list)
-			$${{out_var}}.$${{state}} = 
-		}} else:equals(state, include_cache) {{
-			equals(arg, $$__QDEP_TUPLE_SEPERATOR) {{
-				export($${{current_hash}}.exports)
-				inc_state = hash
-			}} else:equals(inc_state, hash) {{
-				$${{out_var}}.$${{state}} += $$arg
-				current_hash = $$arg
-				inc_state = package
-			}} else:equals(inc_state, package) {{
-				$${{current_hash}}.package = $$arg
-				export($${{current_hash}}.package)
-				inc_state = version
-			}} else:equals(inc_state, version) {{
-				$${{current_hash}}.version = $$arg
-				export($${{current_hash}}.version)
-				inc_state = path
-			}} else:equals(inc_state, path) {{
-				$${{current_hash}}.path = $$arg
-				export($${{current_hash}}.path)
-				inc_state = exports
-			}} else:equals(inc_state, exports) {{
-				$${{current_hash}}.exports += $$arg
-			}} else:return(false)
-		}} else: $${{out_var}}.$${{state}} += $$arg
-	}}
-	export($${{out_var}}.$${{state}})	
-	return(true)
-}}
-
 # First collect all indirect dependencies
-#!isEmpty(QDEP_LINK_DEPENDS): \\
-#	!qdepCollectLinkDependencies($$QDEP_LINK_DEPENDS): \\
-#	error("Failed to resolve all QDEP_LINK_DEPENDS")
+!isEmpty(QDEP_LINK_DEPENDS):for(link_dep, QDEP_LINK_DEPENDS): {{
+	full_path = $$absolute_path($${{link_dep}}_export.pri, $$_PRO_FILE_PWD_)
+	s_full_path = $$shadowed($$full_path)
+	isEmpty(s_full_path): s_full_path = $$full_path
+	!include($$s_full_path): \\
+		error("Failed to include linked library $$link_dep")
+}}
 
 # Collect all dependencies and then include them
 !isEmpty(QDEP_DEPENDS): {{
 	!qdepCollectDependencies($$QDEP_DEPENDS):error("Failed to collect all dependencies")
-	else:for(dep, __QDEP_INCLUDE_CACHE) {{
+	else:for(dep, __QDEP_INCLUDE_CACHE):equals($${{dep}}.local, 1) {{
 		__qdep_define_offset = $$size(DEFINES)
 		__qdep_include_offset = $$size(INCLUDEPATH)
-		equals($${{dep}}.local, 1):include($$first($${{dep}}.path)) {{
+		include($$first($${{dep}}.path)) {{
 			qdep_export_all|contains(QDEP_EXPORTS, $$first($${{dep}}.package)) {{
 				QDEP_EXPORTED_DEFINES += $$member(DEFINES, $$__qdep_define_offset, -1)
 				export(QDEP_EXPORTED_DEFINES)
 				QDEP_EXPORTED_INCLUDEPATH += $$member(INCLUDEPATH, $$__qdep_include_offset, -1)
 				export(QDEP_EXPORTED_INCLUDEPATH)
 			}}
-		}} else:error("Failed to include pri file $$dep")
+		}} else:error("Failed to include pri file $$first($${{dep}}.package)")
 	}}
 }}
 
-qdep_export_all|!isEmpty(QDEP_EXPORTS):!qdepCreateExportPri($$QDEP_EXPORT_FILE):error("Failed to create export file $$QDEP_EXPORT_FILE")
+qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
+	!qdepCreateExportPri($$QDEP_EXPORT_FILE): \\
+	error("Failed to create export file $$QDEP_EXPORT_FILE")
 
 DEFINES += $$QDEP_DEFINES
 INCLUDEPATH += $$QDEP_INCLUDEPATH
-
-# Join private vars
-__QDEP_PRIVATE_VARS_EXPORT = $$qdepJoinPrivateVar()
 """
 
 if __name__ == '__main__':
