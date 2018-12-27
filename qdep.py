@@ -232,7 +232,8 @@ isEmpty(QDEP_TOOL) {{
 	qdep_no_pull: QDEP_TOOL += --no-pull
 	qdep_no_clone: QDEP_TOOL += --no-clone
 }}
-isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "---"
+isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "==="
+isEmpty(__QDEP_TUPLE_SEPERATOR): __QDEP_TUPLE_SEPERATOR = "---"
 
 CONFIG += qdep_build
 
@@ -246,7 +247,7 @@ defineTest(qdepCollectDependencies) {{
 	
 	for(dep_hash, qdep_hashes) {{
 		# handle each dependency, but each package only once
-		dep_pkg = $$take_first(ARGS)		
+		dep_pkg = $$take_first(ARGS)
 		!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
 			# Install the sources and extract some parameters
 			dep_data = $$system($$QDEP_TOOL pri-resolve $$dep_pkg $$shell_quote($$first($${{dep_hash}}.version)), lines, qdep_ok)
@@ -259,32 +260,33 @@ defineTest(qdepCollectDependencies) {{
 		
 			$${{dep_hash}}.package = $$dep_pkg
 			$${{dep_hash}}.version = $$dep_version
+			$${{dep_hash}}.path = $$dep_path
+			$${{dep_hash}}.exports = 
 			export($${{dep_hash}}.package)
 			export($${{dep_hash}}.version)
-			__QDEP_INCLUDE_CACHE += $$dep_hash
-			export(__QDEP_INCLUDE_CACHE)
+			export($${{dep_hash}}.path)
 			
 			# Cache the package version for dependencies with undetermined versions
 			!qdep_no_cache:equals(dep_needs_cache, True):!cache($${{dep_hash}}.version, set $$QDEP_CACHE_SCOPE):warning("Failed to cache package version for $$dep_pkg")
 			
 			# Find all dependencies that package depends on and call this method recursively for those
 			sub_deps = $$fromfile($$dep_path, QDEP_DEPENDS)
-			__QDEP_REAL_DEPS_STACK += $$dep_path			
+			__QDEP_REAL_DEPS_STACK += $$dep_hash			
 			!isEmpty(sub_deps):!qdepCollectDependencies($$sub_deps):return(false)			
-			__QDEP_REAL_DEPS += $$take_last(__QDEP_REAL_DEPS_STACK)
-			export(__QDEP_REAL_DEPS)
+			__QDEP_INCLUDE_CACHE *= $$take_last(__QDEP_REAL_DEPS_STACK)
+			export(__QDEP_INCLUDE_CACHE)
 			
 			# Handle all defines for symbol exports, if specified
 			sub_exports = $$fromfile($$dep_path, QDEP_PACKAGE_EXPORTS)
 			qdep_export_all|contains(QDEP_EXPORTS, $$dep_pkg): \\
 				for(sub_export, sub_exports) {{
 					DEFINES += "$${{sub_export}}=Q_DECL_EXPORT"
-					__QDEP_ACTIVE_EXPORTS += $$sub_export
+					$${{dep_hash}}.exports += $$sub_export
 			}} else: \\
 				for(sub_export, sub_exports): \\
 				DEFINES += "$${{sub_export}}="
 			export(DEFINES)
-			export(__QDEP_ACTIVE_EXPORTS)
+			export($${{dep_hash}}.exports)
 		}} else: \\
 			!equals(dep_version, $$first($${{dep_hash}}.version)): \\
 			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${{dep_hash}}.package)\\" is used, and version \\"$$dep_version\\" was detected.")
@@ -300,16 +302,29 @@ defineTest(qdepCollectLinkDependencies) {{
 		proj_path = $$absolute_path($$link_proj, $$_PRO_FILE_PWD_)
 		link_depends = $$fromfile($$proj_path, __QDEP_PRIVATE_VARS_EXPORT)
 		!qdepSplitPrivateVar(__qdep_tmp_priv_vars, $$link_depends)
-		message("real_deps $${{__qdep_tmp_priv_vars.real_deps}}")
-		message("include_cache $${{__qdep_tmp_priv_vars.include_cache}}")
 		
 		# update project vars from extracted stuff
-		for(dep_import, $${{__qdep_tmp_priv_vars.active_exports}}): DEFINES += "$${{dep_import}}=Q_DECL_IMPORT"
 		DEFINES += $${{__qdep_tmp_priv_vars.defines}}
-		export(DEFINES)
 		INCLUDEPATH += $$dirname($$proj_path)
 		INCLUDEPATH += $${{__qdep_tmp_priv_vars.includepath}}
+		for(dep_hash, __qdep_tmp_priv_vars.include_cache) {{
+			!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
+				DEFINES += $$fromfile($$first($${{dep_hash}}.path), DEFINES)
+				INCLUDEPATH += $$fromfile($$first($${{dep_hash}}.path), INCLUDEPATH)
+			
+				# Handle all defines for symbol exports, if specified
+				sub_exports = $$fromfile($$first($${{dep_hash}}.path), QDEP_PACKAGE_EXPORTS)
+				for(sub_export, sub_exports) {{
+					contains($${{dep_hash}}.exports, $$sub_export): DEFINES += "$${{sub_export}}=Q_DECL_IMPORT"
+					else: DEFINES += "$${{sub_export}}="
+				}}
+				
+				__QDEP_INCLUDE_CACHE += $$dep_hash
+			}}
+		}}
+		export(DEFINES)
 		export(INCLUDEPATH)
+		export(__QDEP_INCLUDE_CACHE)
 	}}
 
 	return(true)
@@ -317,14 +332,18 @@ defineTest(qdepCollectLinkDependencies) {{
 
 # Combines all private qdep vars into one super variable to speed up imports
 defineReplace(qdepJoinPrivateVar) {{
-	for(dep, __QDEP_INCLUDE_CACHE): include_dep_tuples += $$dep $$first($${{dep}}.package) $$first($${{dep}}.version)
-	return($$__QDEP_REAL_DEPS $$__QDEP_PRIVATE_SEPERATOR $$include_dep_tuples $$__QDEP_PRIVATE_SEPERATOR $$__QDEP_ACTIVE_EXPORTS $$__QDEP_PRIVATE_SEPERATOR $$QDEP_DEFINES $$__QDEP_PRIVATE_SEPERATOR $$QDEP_INCLUDEPATH)
+	for(dep, __QDEP_INCLUDE_CACHE) {{
+		include_dep_tuples += $$dep $$first($${{dep}}.package) $$first($${{dep}}.version) $$first($${{dep}}.path)
+		for(exp,  $${{dep}}.exports): include_dep_tuples += $$exp
+		include_dep_tuples += $$__QDEP_TUPLE_SEPERATOR
+	}}
+	return($$include_dep_tuples $$__QDEP_PRIVATE_SEPERATOR $$QDEP_DEFINES $$__QDEP_PRIVATE_SEPERATOR $$QDEP_INCLUDEPATH)
 }}
 
 # Split previously concatenated qdep vars into the ones passed to the function
 defineTest(qdepSplitPrivateVar) {{
 	out_var = $$take_first(ARGS)
-	state_list = real_deps include_cache active_exports defines includepath
+	state_list = include_cache defines includepath
 	state = $$take_first(state_list)
 	inc_state = hash
 	$${{out_var}}.$${{state}} = 
@@ -334,7 +353,10 @@ defineTest(qdepSplitPrivateVar) {{
 			state = $$take_first(state_list)
 			$${{out_var}}.$${{state}} = 
 		}} else:equals(state, include_cache) {{
-			equals(inc_state, hash) {{
+			equals(arg, $$__QDEP_TUPLE_SEPERATOR) {{
+				export($${{current_hash}}.exports)
+				inc_state = hash
+			}} else:equals(inc_state, hash) {{
 				$${{out_var}}.$${{state}} += $$arg
 				current_hash = $$arg
 				inc_state = package
@@ -345,7 +367,13 @@ defineTest(qdepSplitPrivateVar) {{
 			}} else:equals(inc_state, version) {{
 				$${{current_hash}}.version = $$arg
 				export($${{current_hash}}.version)
-				inc_state = hash
+				inc_state = path
+			}} else:equals(inc_state, path) {{
+				$${{current_hash}}.path = $$arg
+				export($${{current_hash}}.path)
+				inc_state = exports
+			}} else:equals(inc_state, exports) {{
+				$${{current_hash}}.exports += $$arg
 			}} else:return(false)
 		}} else: $${{out_var}}.$${{state}} += $$arg
 	}}
@@ -362,8 +390,8 @@ defineTest(qdepSplitPrivateVar) {{
 !isEmpty(QDEP_DEPENDS): {{
 	!qdepCollectDependencies($$QDEP_DEPENDS):error("Failed to collect all dependencies")
 	else: \\
-		for(dep, __QDEP_REAL_DEPS): \\
-		!include($$dep): \\
+		for(dep, __QDEP_INCLUDE_CACHE): \\
+		!include($$first($${{dep}}.path)): \\
 		error("Failed to include pri file $$dep")
 }}
 

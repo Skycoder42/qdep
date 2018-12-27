@@ -59,11 +59,15 @@ INCLUDEPATH += $$PWD
 message("TARGET: $$TARGET")
 !qdep_build:error("qdep was loaded, but qdep_build config is not set")
 !isEmpty(__QDEP_REAL_DEPS_STACK):error("__QDEP_REAL_DEPS_STACK not empty: $$__QDEP_REAL_DEPS_STACK")
-message("__QDEP_REAL_DEPS: $$__QDEP_REAL_DEPS")
 message("__QDEP_INCLUDE_CACHE:")
 for(hash, __QDEP_INCLUDE_CACHE) {
     message("    $${hash}.package: $$first($${hash}.package)")
     message("    $${hash}.version: $$first($${hash}.version)")
+    message("    $${hash}.path: $$first($${hash}.path)")
+    message("    $${hash}.exports: $$first($${hash}.exports)")
 }
-message("__QDEP_ACTIVE_EXPORTS: $$__QDEP_ACTIVE_EXPORTS")
+message("QDEP_DEFINES: $$QDEP_DEFINES")
+message("DEFINES: $$DEFINES")
+message("QDEP_INCLUDEPATH: $$QDEP_INCLUDEPATH")
+message("INCLUDEPATH: $$INCLUDEPATH")
 message("__QDEP_PRIVATE_VARS_EXPORT: $$__QDEP_PRIVATE_VARS_EXPORT")

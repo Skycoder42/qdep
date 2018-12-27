@@ -10,4 +10,4 @@ A very basic yet simple to use dependency management tool for qmake based projec
 - replaces: qdepJoinPrivateVar
 - env_vars: QDEP_CACHE_DIR, QDEP_SOURCE_OVERRIDE, QDEP_DEFAULT_PKG_FN
 - private:
-    - vars: __QDEP_INCLUDE_CACHE, __QDEP_REAL_DEPS_STACK, __QDEP_REAL_DEPS, __QDEP_ACTIVE_EXPORTS, __QDEP_PRIVATE_VARS_EXPORT, __QDEP_PRIVATE_SEPERATOR
+    - vars: __QDEP_INCLUDE_CACHE, __QDEP_REAL_DEPS_STACK, __QDEP_PRIVATE_VARS_EXPORT, __QDEP_PRIVATE_SEPERATOR, __QDEP_TUPLE_SEPERATOR
