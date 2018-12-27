@@ -35,10 +35,10 @@ INCLUDEPATH += $$PWD
             win32-g++: QMAKE_DIRLIST_SEP = ":"
 
             linux|win32-g++ {
-                runtarget.commands += $$escape_expand(\\n\\t)@export LD_LIBRARY_PATH=\"$$shadowed($$dirname(_QMAKE_CONF_))/lib/$${QMAKE_DIRLIST_SEP}$$[QT_INSTALL_LIBS]$${QMAKE_DIRLIST_SEP}$(LD_LIBRARY_PATH)\"
+                runtarget.commands += $$escape_expand(\\n\\t)@export LD_LIBRARY_PATH=\"$$shadowed($$dirname(_QMAKE_CONF_))/external/libdynamic/$${QMAKE_DIRLIST_SEP}$$[QT_INSTALL_LIBS]$${QMAKE_DIRLIST_SEP}$(LD_LIBRARY_PATH)\"
                 runtarget.commands += $$escape_expand(\\n\\t)@export QT_QPA_PLATFORM=minimal
             } else:mac {
-                runtarget.commands += $$escape_expand(\\n\\t)@export DYLD_LIBRARY_PATH=\"$$shadowed($$dirname(_QMAKE_CONF_))/lib/:$$[QT_INSTALL_LIBS]:$(DYLD_LIBRARY_PATH)\"
+                runtarget.commands += $$escape_expand(\\n\\t)@export DYLD_LIBRARY_PATH=\"$$shadowed($$dirname(_QMAKE_CONF_))/external/libdynamic/:$$[QT_INSTALL_LIBS]:$(DYLD_LIBRARY_PATH)\"
                 runtarget.commands += $$escape_expand(\\n\\t)@export DYLD_FRAMEWORK_PATH=\"$$shadowed($$dirname(_QMAKE_CONF_))/lib/:$$[QT_INSTALL_LIBS]:$(DYLD_FRAMEWORK_PATH)\"
             }
 

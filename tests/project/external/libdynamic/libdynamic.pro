@@ -1,5 +1,7 @@
 TEMPLATE = lib
 
+TARGET = libdynamic
+
 DEFINES += LIBDYNAMIC_BUILD
 
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package4/package4.pri

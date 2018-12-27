@@ -307,7 +307,6 @@ defineTest(qdepCollectLinkDependencies) {{
 		
 		# update project vars from extracted stuff
 		DEFINES += $${{__qdep_tmp_priv_vars.defines}}
-		INCLUDEPATH += $$dirname(proj_path)
 		INCLUDEPATH += $${{__qdep_tmp_priv_vars.includepath}}
 		for(dep_hash, __qdep_tmp_priv_vars.include_cache) {{
 			!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
@@ -334,6 +333,31 @@ defineTest(qdepCollectLinkDependencies) {{
 		export(DEFINES)
 		export(INCLUDEPATH)
 		export(__QDEP_INCLUDE_CACHE)
+		
+		# link the library, if not disabled
+		!qdep_no_link {{
+			INCLUDEPATH += $$dirname(proj_path)
+			export(INCLUDEPATH)
+			
+			out_libdir = $$shadowed($$dirname(proj_path))
+			win32:CONFIG(release, debug|release): LIBS += "-L$${{out_libdir}}/release/"
+			else:win32:CONFIG(debug, debug|release): LIBS += "-L$${{out_libdir}}/debug/"
+			else:unix: LIBS += "-L$${{out_libdir}}/"
+			LIBS += "-l$${{__qdep_tmp_priv_vars.target}}"
+			export(LIBS)
+			
+			!equals(__qdep_tmp_priv_vars.is_dynamic, 1) {{
+				DEPENDPATH += $$dirname(proj_path)
+				export(DEPENDPATH)
+				
+				win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $${{out_libdir}}/release/lib$${{__qdep_tmp_priv_vars.target}}.a
+				else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $${{out_libdir}}/debug/lib$${{__qdep_tmp_priv_vars.target}}.a
+				else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $${{out_libdir}}/release/$${{__qdep_tmp_priv_vars.target}}.lib
+				else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $${{out_libdir}}/debug/$${{__qdep_tmp_priv_vars.target}}.lib
+				else:unix: PRE_TARGETDEPS += $${{out_libdir}}/lib$${{__qdep_tmp_priv_vars.target}}.a
+				export(PRE_TARGETDEPS)
+			}}
+		}}
 	}}
 
 	return(true)
@@ -346,13 +370,15 @@ defineReplace(qdepJoinPrivateVar) {{
 		for(exp,  $${{dep}}.exports): include_dep_tuples += $$exp
 		include_dep_tuples += $$__QDEP_TUPLE_SEPERATOR
 	}}
-	return($$include_dep_tuples $$__QDEP_PRIVATE_SEPERATOR $$QDEP_DEFINES $$__QDEP_PRIVATE_SEPERATOR $$QDEP_INCLUDEPATH)
+	static|staticlib: qdep_is_dynamic = 0
+	else: qdep_is_dynamic = 1
+	return($$include_dep_tuples $$__QDEP_PRIVATE_SEPERATOR $$QDEP_DEFINES $$__QDEP_PRIVATE_SEPERATOR $$QDEP_INCLUDEPATH $$__QDEP_PRIVATE_SEPERATOR $$TARGET $$__QDEP_PRIVATE_SEPERATOR $$qdep_is_dynamic)
 }}
 
 # Split previously concatenated qdep vars into the ones passed to the function
 defineTest(qdepSplitPrivateVar) {{
 	out_var = $$take_first(ARGS)
-	state_list = include_cache defines includepath
+	state_list = include_cache defines includepath target is_dynamic
 	state = $$take_first(state_list)
 	inc_state = hash
 	$${{out_var}}.$${{state}} = 

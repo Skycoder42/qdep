@@ -14,4 +14,6 @@ cd "$BUILD_PATH"
 "$QMAKE" "$SCRIPT_PATH/project/"
 make qmake_all
 make
+
+export LD_LIBRARY_PATH="$BUILD_PATH/external/libdynamic/:$LD_LIBRARY_PATH"
 make run-tests

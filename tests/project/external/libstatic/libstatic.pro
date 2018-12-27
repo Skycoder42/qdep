@@ -1,6 +1,8 @@
 TEMPLATE = lib
 CONFIG += static
 
+TARGET = libstatic
+
 HEADERS += libstatic.h
 
 SOURCES += libstatic.cpp
