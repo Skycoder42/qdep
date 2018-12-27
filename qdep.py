@@ -334,19 +334,22 @@ defineTest(qdepCreateExportPri) {{
 		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
 		
 		out_libdir = $$shadowed($$_PRO_FILE_PWD_)
-		win32:CONFIG(release, debug|release): out_file_data += $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/release/")
-		else:win32:CONFIG(debug, debug|release): out_file_data += $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/debug/")
-		else:unix: out_file_data += $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/")
+		win32 {{
+			out_file_data += "CONFIG(release, debug|release): $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/release/")"
+			out_file_data += "else:CONFIG(debug, debug|release): $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/debug/")"
+		}} else:unix: out_file_data += $$qdepOutQuote(LIBS, "-L$${{out_libdir}}/")
 		out_file_data += $$qdepOutQuote(LIBS, "-l$${{TARGET}}")
 		
 		static|staticlib {{
 			out_file_data += $$qdepOutQuote(DEPENDPATH, $$_PRO_FILE_PWD_)
 			
-			win32-g++:CONFIG(release, debug|release): out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/release/lib$${{TARGET}}.a")
-			else:win32-g++:CONFIG(debug, debug|release): out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/debug/lib$${{TARGET}}.a")
-			else:win32:!win32-g++:CONFIG(release, debug|release): out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/release/$${{TARGET}}.lib")
-			else:win32:!win32-g++:CONFIG(debug, debug|release): out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/debug/$${{TARGET}}.lib")
-			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/lib$${{TARGET}}.a")
+			win32-g++ {{
+				out_file_data += "CONFIG(release, debug|release): $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/release/lib$${{TARGET}}.a")"
+				out_file_data += "else:CONFIG(debug, debug|release): $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/debug/lib$${{TARGET}}.a")"
+			}} else:win32:!win32-g++ {{
+				out_file_data += "CONFIG(release, debug|release): $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/release/$${{TARGET}}.lib")"
+				out_file_data += "else:CONFIG(debug, debug|release): $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/debug/$${{TARGET}}.lib")"
+			}} else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${{out_libdir}}/lib$${{TARGET}}.a")
 		}}
 	}}
 	
