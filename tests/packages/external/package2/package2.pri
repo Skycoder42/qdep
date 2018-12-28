@@ -8,4 +8,6 @@ HEADERS += $$PWD/staticclass.h
 
 SOURCES += $$PWD/staticclass.cpp
 
+RESOURCES += $$PWD/package2.qrc
+
 INCLUDEPATH += $$PWD

@@ -233,6 +233,7 @@ isEmpty(QDEP_TOOL) {{
 	qdep_no_clone: QDEP_TOOL += --no-clone
 }}
 isEmpty(QDEP_EXPORT_FILE): QDEP_EXPORT_FILE = $$shadowed($$absolute_path($$lower("$${{TARGET}}_export.pri"), $$_PRO_FILE_PWD_))
+isEmpty(QDEP_GENERATED_SOURCES_DIR): QDEP_GENERATED_SOURCES_DIR = .
 isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "==="
 isEmpty(__QDEP_TUPLE_SEPERATOR): __QDEP_TUPLE_SEPERATOR = "---"
 
@@ -393,6 +394,23 @@ defineReplace(qdepLinkExpand) {{
 	}}
 }}
 
+# create special target for resource hooks in static libs
+static|staticlib {{
+	debug_and_release {{
+		CONFIG(release, debug|release): QDEP_GENERATED_SOURCES_DIR = $${{QDEP_GENERATED_SOURCES_DIR}}/release
+		else:CONFIG(debug, debug|release): QDEP_GENERATED_SOURCES_DIR = $${{QDEP_GENERATED_SOURCES_DIR}}/debug
+	}}	
+	qdep_hook_generator_c.name = qdep hookgen ${{QMAKE_FILE_IN}}
+	qdep_hook_generator_c.input = RESOURCES
+	qdep_hook_generator_c.variable_out = HEADERS
+	qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen --out ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
+	qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_resource_hooks$${{first(QMAKE_EXT_H)}}
+	qdep_hook_generator_c.CONFIG += target_predeps combine
+	qdep_hook_generator_c.depends += $$QDEP_PATH
+	QMAKE_EXTRA_COMPILERS += qdep_hook_generator_c
+}}
+
+# Create qdep pri export, if modules should be exported
 qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
 	!qdepCreateExportPri($$QDEP_EXPORT_FILE): \\
 	error("Failed to create export file $$QDEP_EXPORT_FILE")
