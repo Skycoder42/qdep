@@ -174,12 +174,17 @@ def prfgen(arguments):
 	return 0
 
 
+def dephash(arguments):
+	for package in arguments.input:
+		pkg_url, pkg_branch, pkg_path = package_resolve(package)
+		print(pkg_hash(pkg_url, pkg_path))
+	return 0
+
+
 def pri_resolve(arguments):
 	ov_map = get_override_map()
-	package = arguments.input[0]
-	pkg_version = arguments.input[1] if len(arguments.input[1]) > 0 else None
 
-	pkg_url, pkg_branch, pkg_path = package_resolve(package, pkg_version=pkg_version)
+	pkg_url, pkg_branch, pkg_path = package_resolve(arguments.package, pkg_version=arguments.version)
 	needs_cache = pkg_branch is None
 	if pkg_url in ov_map:
 		pkg_base = ov_map[pkg_url]
@@ -193,21 +198,45 @@ def pri_resolve(arguments):
 	return 0
 
 
-def dephash(arguments):
-	for package in arguments.input:
-		pkg_url, pkg_branch, pkg_path = package_resolve(package)
-		print(pkg_hash(pkg_url, pkg_path))
+def hookgen(arguments):
+	inc_guard = path.basename(arguments.header).replace(".", "_").upper()
+	with open(arguments.header, "w") as out_file:
+		out_file.write("#ifndef {}\n".format(inc_guard))
+		out_file.write("#define {}\n\n".format(inc_guard))
+
+		out_file.write("namespace {} {{\n\n".format(arguments.namespace))
+		out_file.write("inline void init_resources() {\n")
+		for resource in arguments.resources:
+			out_file.write("\tQ_INIT_RESOURCE({});\n".format(path.splitext(path.basename(resource))[0]))
+		out_file.write("}\n\n")
+		out_file.write("}\n\n")
+
+		out_file.write("#endif //{}\n".format(inc_guard))
 	return 0
 
 
 def main():
-	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects")
+	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects.")
 	parser.add_argument("-v", "--version", action="version", version="%(prog)s 1.0.0")
-	parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for")
-	parser.add_argument("--no-pull", dest="pull", action="store_false", help="Do not update existing packages that are based on branches instead of tags.")
-	parser.add_argument("--no-clone", dest="clone", action="store_false", help="Do not allow installation of new packages. Trying so will lead to an error. Updating existing packages is still possible")
-	parser.add_argument("operation", action="store", choices=["prfgen", "dephash", "pri-resolve"], metavar="operation", help="Specify the operation that should be performed by qdep")
-	parser.add_argument("input", action="store", nargs="*", metavar="packages", help="Package descriptors to be processed by qdep")
+
+	sub_args = parser.add_subparsers(dest="operation", required=True, title="Operations", metavar="{operation}")
+
+	prfgen_parser = sub_args.add_parser("prfgen", help="Generate a qmake project feature (prf) for the given qmake.")
+	prfgen_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for.")
+
+	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
+	dephash_parser.add_argument("input", action="store", nargs="*", metavar="package", help="The packages to generate hashes for.")
+
+	pri_resolve_parser = sub_args.add_parser("pri-resolve", help="[INTERNAL] Download the given qdep package and extract relevant information from it.")
+	pri_resolve_parser.add_argument("--no-pull", dest="pull", action="store_false", help="Do not update existing packages that are based on branches instead of tags.")
+	pri_resolve_parser.add_argument("--no-clone", dest="clone", action="store_false", help="Do not allow installation of new packages. Trying so will lead to an error. Updating existing packages is still possible.")
+	pri_resolve_parser.add_argument("package", action="store", metavar="package", help="The package identifier of the package to be downloaded and resolved.")
+	pri_resolve_parser.add_argument("version", action="store", nargs="?", metavar="latest-version", help="The previousley cached version for packages with no version identifier.")
+
+	hookgen_parser = sub_args.add_parser("hookgen", help="[INTERNAL] Generate a header file with a method to load all resource hooks.")
+	hookgen_parser.add_argument("-n", "--ns", "--namespace", action="store", default="qdep", dest="namespace", help="The namespace to place the init_resources method in.")
+	hookgen_parser.add_argument("header", action="store", metavar="header", help="The path to the header-file to be generated.")
+	hookgen_parser.add_argument("resources", action="store", nargs="+", metavar="resource", help="Paths to the resource-files to generate the hooks for.")
 
 	res = parser.parse_args()
 	if res.operation == "prfgen":
@@ -216,6 +245,8 @@ def main():
 		result = dephash(res)
 	elif res.operation == "pri-resolve":
 		result = pri_resolve(res)
+	elif res.operation == "hookgen":
+		result = hookgen(res)
 	else:
 		result = -1
 	sys.exit(result)
@@ -226,11 +257,8 @@ isEmpty(QDEP_PATH): QDEP_PATH = {}
 isEmpty(QDEP_VERSION): QDEP_VERSION = 1.0.0
 isEmpty(QDEP_CACHE_SCOPE): QDEP_CACHE_SCOPE = stash
 isEmpty(QDEP_TOOL) {{
-	win32: QDEP_TOOL = python "\"$$QDEP_PATH\""
-	else: QDEP_TOOL = $$shell_path($$QDEP_PATH)
-	QDEP_TOOL += --qmake $$shell_quote($$QMAKE_QMAKE)
-	qdep_no_pull: QDEP_TOOL += --no-pull
-	qdep_no_clone: QDEP_TOOL += --no-clone
+	win32: QDEP_TOOL = python $$system_path($$QDEP_PATH)
+	else: QDEP_TOOL = $$system_path($$QDEP_PATH)
 }}
 isEmpty(QDEP_EXPORT_FILE): QDEP_EXPORT_FILE = $$shadowed($$absolute_path($$lower("$${{TARGET}}_export.pri"), $$_PRO_FILE_PWD_))
 isEmpty(QDEP_GENERATED_SOURCES_DIR): QDEP_GENERATED_SOURCES_DIR = .
@@ -243,7 +271,7 @@ CONFIG += qdep_build
 defineTest(qdepCollectDependencies) {{
 	# transform all dependencies into unique hashes
 	qdep_dependencies = 
-	for(arg, ARGS): qdep_dependencies += $$shell_quote($$arg)
+	for(arg, ARGS): qdep_dependencies += $$system_quote($$arg)
 	qdep_hashes = $$system($$QDEP_TOOL dephash $$qdep_dependencies, lines, qdep_ok)
 	!equals(qdep_ok, 0):return(false)
 	
@@ -252,7 +280,12 @@ defineTest(qdepCollectDependencies) {{
 		dep_pkg = $$take_first(ARGS)
 		!contains(__QDEP_INCLUDE_CACHE, $$dep_hash) {{
 			# Install the sources and extract some parameters
-			dep_data = $$system($$QDEP_TOOL pri-resolve $$dep_pkg $$shell_quote($$first($${{dep_hash}}.version)), lines, qdep_ok)
+			dep_extra_args = 
+			qdep_no_pull: dep_extra_args += --no-pull
+			qdep_no_clone: dep_extra_args += --no-clone
+			!isEmpty($${{dep_hash}}.version): dep_vers_arg = $$system_quote($$first($${{dep_hash}}.version))
+			else: dep_vers_arg =
+			dep_data = $$system($$QDEP_TOOL pri-resolve $$dep_extra_args $$system_quote($$dep_pkg) $$dep_vers_arg, lines, qdep_ok)
 			!equals(qdep_ok, 0):return(false)
 			!equals(dep_hash, $$take_first(dep_data)):error("Cricital internal error: dependencies out of sync"):return(false)
 			
@@ -403,7 +436,7 @@ static|staticlib {{
 	qdep_hook_generator_c.name = qdep hookgen ${{QMAKE_FILE_IN}}
 	qdep_hook_generator_c.input = RESOURCES
 	qdep_hook_generator_c.variable_out = HEADERS
-	qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen --out ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
+	qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
 	qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_resource_hooks$${{first(QMAKE_EXT_H)}}
 	qdep_hook_generator_c.CONFIG += target_predeps combine
 	qdep_hook_generator_c.depends += $$QDEP_PATH
