@@ -320,7 +320,7 @@ defineTest(qdepCreateExportPri) {{
 	for(exp_var_key, QDEP_VAR_EXPORTS): out_file_data += $$qdepOutQuote($$exp_var_key, $$eval($$exp_var_key))
 	
 	# write package cache
-	for(dep_hash, __QDEP_INCLUDE_CACHE) {{
+	for(dep_hash, __QDEP_INCLUDE_CACHE):equals($${{dep_hash}}.local, 1) {{
 		out_file_data += $$qdepOutQuote($${{dep_hash}}.package, $$eval($${{dep_hash}}.package))
 		out_file_data += $$qdepOutQuote($${{dep_hash}}.version, $$eval($${{dep_hash}}.version))
 		out_file_data += $$qdepOutQuote($${{dep_hash}}.path, $$eval($${{dep_hash}}.path))
@@ -357,14 +357,24 @@ defineTest(qdepCreateExportPri) {{
 	else:return(false)
 }}
 
-# First collect all indirect dependencies
-!isEmpty(QDEP_LINK_DEPENDS):for(link_dep, QDEP_LINK_DEPENDS): {{
-	full_path = $$absolute_path($${{link_dep}}_export.pri, $$_PRO_FILE_PWD_)
-	s_full_path = $$shadowed($$full_path)
-	isEmpty(s_full_path): s_full_path = $$full_path
-	!include($$s_full_path): \\
-		error("Failed to include linked library $$link_dep")
+# get the full pri path of a link dependency
+defineReplace(qdepLinkExpand) {{
+	base_path = $$1
+	suffix = $$str_member($$base_path, -4, -1)
+	equals(suffix, ".pro"): base_path = "$$str_member(base_path, 0, -5)_export.pri"
+	else:!equals(suffix, ".pri"): base_path = "$${{base_path}}/$$dirname(base_path)_export.pri"
+	base_path = $$absolute_path($$base_path, $$_PRO_FILE_PWD_)
+	s_base_path = $$shadowed($$base_path)
+	!isEmpty(s_base_path):exists($$s_base_path):return($$s_base_path)
+	else:!isEmpty(base_path):exists($$base_path):return($$base_path)
+	else:return()
 }}
+
+# First collect all indirect dependencies
+!isEmpty(QDEP_LINK_DEPENDS): \\
+	for(link_dep, QDEP_LINK_DEPENDS): \\
+	!include($$qdepLinkExpand($$link_dep)): \\
+	error("Failed to include linked library $$link_dep")
 
 # Collect all dependencies and then include them
 !isEmpty(QDEP_DEPENDS): {{
