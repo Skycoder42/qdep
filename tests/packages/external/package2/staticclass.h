@@ -6,6 +6,8 @@
 class PACKAGE2_EXPORT StaticClass
 {
 public:
+    static bool startupRun();
+
     int magicNumber();
 };
 

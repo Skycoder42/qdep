@@ -204,7 +204,7 @@ def hookgen(arguments):
 		out_file.write("#ifndef {}\n".format(inc_guard))
 		out_file.write("#define {}\n\n".format(inc_guard))
 
-		out_file.write("inline void {}_init_resources() {{\n".format(arguments.prefix))
+		out_file.write("inline void qdep_{}_init() {{\n".format(arguments.prefix))
 		for resource in arguments.resources:
 			out_file.write("\tQ_INIT_RESOURCE({});\n".format(path.splitext(path.basename(resource))[0]))
 		out_file.write("}\n\n")
@@ -232,8 +232,8 @@ def main():
 	pri_resolve_parser.add_argument("version", action="store", nargs="?", metavar="latest-version", help="The previousley cached version for packages with no version identifier.")
 
 	hookgen_parser = sub_args.add_parser("hookgen", help="[INTERNAL] Generate a header file with a method to load all resource hooks.")
-	hookgen_parser.add_argument("-p", "--prefix", action="store", default="qdep", dest="prefix", help="The namespace to place the init_resources method in.")
-	hookgen_parser.add_argument("header", action="store", metavar="header", help="The path to the header-file to be generated.")
+	hookgen_parser.add_argument("prefix", action="store", help="The target name to use as part of the generated hook method.")
+	hookgen_parser.add_argument("header", action="store", help="The path to the header-file to be generated.")
 	hookgen_parser.add_argument("resources", action="store", nargs="+", metavar="resource", help="Paths to the resource-files to generate the hooks for.")
 
 	res = parser.parse_args()
@@ -264,6 +264,7 @@ isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "==="
 isEmpty(__QDEP_TUPLE_SEPERATOR): __QDEP_TUPLE_SEPERATOR = "---"
 
 CONFIG += qdep_build
+DEFINES += QDEP_BUILD
 
 # The primary dependecy collector function
 defineTest(qdepCollectDependencies) {{
@@ -434,8 +435,8 @@ static|staticlib {{
 	qdep_hook_generator_c.name = qdep hookgen ${{QMAKE_FILE_IN}}
 	qdep_hook_generator_c.input = RESOURCES
 	qdep_hook_generator_c.variable_out = HEADERS
-	qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
-	qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_resource_hooks$${{first(QMAKE_EXT_H)}}
+	qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen $${{TARGET}} ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
+	qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_$${{TARGET}}_hooks$${{first(QMAKE_EXT_H)}}
 	qdep_hook_generator_c.CONFIG += target_predeps combine
 	qdep_hook_generator_c.depends += $$QDEP_PATH
 	QMAKE_EXTRA_COMPILERS += qdep_hook_generator_c
