@@ -8,12 +8,24 @@
 #include <extra_sta.h>
 #include <extra_dyn.h>
 
+namespace {
+bool startuped = false;
+}
+
+void app_startup_hook()
+{
+    startuped = true;
+}
+
 int main(int argc, char **argv)
 {
     QCoreApplication app{argc, argv};
 
     VERIFY(StaticClass::startupRun());
+    VERIFY(DynamicClass::startupRun());
     VERIFY(LibStatic::libStartupRun());
+    VERIFY(LibDynamic::libStartupRun());
+    VERIFY(startuped);
 
     LibStatic stat;
     COMPARE(stat.magicNumber(), 422);

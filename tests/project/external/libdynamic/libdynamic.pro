@@ -7,6 +7,8 @@ DEFINES += LIBDYNAMIC_BUILD
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package4/package4.pri
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package5/package5.pri
 
+QDEP_HOOK_FNS += libdynamic_startup_hook
+
 QDEP_DEFINES += LIBDYNAMIC_TEST
 QDEP_INCLUDEPATH += $$PWD/extra
 

@@ -13,6 +13,7 @@
 class LIBDYNAMIC_EXPORT LibDynamic : public DynamicClass
 {
 public:
+    static bool libStartupRun();
     double magicFraction();
 };
 

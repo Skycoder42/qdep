@@ -6,6 +6,7 @@
 class PACKAGE5_EXPORT DynamicClass
 {
 public:
+    static bool startupRun();
     int magicNumber();
 };
 
