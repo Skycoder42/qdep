@@ -199,19 +199,45 @@ def pri_resolve(arguments):
 
 
 def hookgen(arguments):
-	print(arguments.hooks, file=sys.stderr)
-	print(arguments.resources, file=sys.stderr)
 	inc_guard = path.basename(arguments.header).replace(".", "_").upper()
 	with open(arguments.header, "w") as out_file:
 		out_file.write("#ifndef {}\n".format(inc_guard))
 		out_file.write("#define {}\n\n".format(inc_guard))
 
-		out_file.write("inline void qdep_{}_init() {{\n".format(arguments.prefix))
-		for resource in arguments.resources:
+		for hook in arguments.hooks:
+			out_file.write("void {}();\n".format(hook))
+
+		out_file.write("\ninline void qdep_{}_init() {{\n".format(arguments.prefix))
+		out_file.write("\t// resources\n")
+		for resource in arguments.resources:  # ignore the first argument, as it is always the current pro file (to ensure this rule is always run
 			out_file.write("\tQ_INIT_RESOURCE({});\n".format(path.splitext(path.basename(resource))[0]))
+		out_file.write("\t// hooks\n")
+		for hook in arguments.hooks:
+			out_file.write("\t{}();\n".format(hook))
 		out_file.write("}\n\n")
 
 		out_file.write("#endif //{}\n".format(inc_guard))
+	return 0
+
+
+def hookimp(arguments):
+	with open(arguments.outfile, "w") as out_file:
+		targets = []
+		target_regex = re.compile(r".*qdep_(.*)_hooks\.h$")
+
+		out_file.write("#include <QtCore/QCoreApplication>\n")
+		for header in arguments.headers:
+			abs_path = path.abspath(header)
+			out_file.write("#include \"{}\"\n".format(abs_path))
+			targets.append(re.match(target_regex, header).group(1))
+
+		out_file.write("\nnamespace {\n\n")
+		out_file.write("void __qdep_startup_hooks() {\n")
+		for target in targets:
+			out_file.write("\tqdep_{}_init();\n".format(target))
+		out_file.write("}\n\n")
+		out_file.write("}\n")
+		out_file.write("Q_COREAPP_STARTUP_FUNCTION(__qdep_startup_hooks)\n")
 	return 0
 
 
@@ -237,7 +263,12 @@ def main():
 	hookgen_parser.add_argument("--hooks", action="store", nargs="*", help="The path to a qmake executable to place the prf file for.")
 	hookgen_parser.add_argument("prefix", action="store", help="The target name to use as part of the generated hook method.")
 	hookgen_parser.add_argument("header", action="store", help="The path to the header-file to be generated.")
+	hookgen_parser.add_argument("dummy", action="store", metavar="pro-file", help="The path to the current pro file - needed for Makefile rules.")
 	hookgen_parser.add_argument("resources", action="store", nargs="*", metavar="resource", help="Paths to the resource-files to generate the hooks for.")
+
+	hookimp_parser = sub_args.add_parser("hookimp", help="[INTERNAL] Generate a source file that includes and runs all qdep hooks as normal startup hook.")
+	hookimp_parser.add_argument("outfile", action="store", help="The path to the cpp-file to be generated.")
+	hookimp_parser.add_argument("headers", action="store", nargs="*", metavar="header", help="Paths to the header-files that contain hooks to be run.")
 
 	res = parser.parse_args()
 	if res.operation == "prfgen":
@@ -248,6 +279,8 @@ def main():
 		result = pri_resolve(res)
 	elif res.operation == "hookgen":
 		result = hookgen(res)
+	elif res.operation == "hookimp":
+		result = hookimp(res)
 	else:
 		result = -1
 	sys.exit(result)
@@ -261,8 +294,14 @@ isEmpty(QDEP_TOOL) {{
 	win32: QDEP_TOOL = python $$system_path($$QDEP_PATH)
 	else: QDEP_TOOL = $$system_path($$QDEP_PATH)
 }}
-isEmpty(QDEP_EXPORT_FILE): QDEP_EXPORT_FILE = $$shadowed($$absolute_path($$lower("$${{TARGET}}_export.pri"), $$_PRO_FILE_PWD_))
-isEmpty(QDEP_GENERATED_SOURCES_DIR): QDEP_GENERATED_SOURCES_DIR = .
+
+isEmpty(QDEP_GENERATED_DIR): QDEP_GENERATED_DIR = $$OUT_PWD
+debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_SOURCES_DIR = $${{QDEP_GENERATED_DIR}}/release
+else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_SOURCES_DIR = $${{QDEP_GENERATED_DIR}}/debug
+else: QDEP_GENERATED_SOURCES_DIR = $$QDEP_GENERATED_DIR
+
+isEmpty(QDEP_EXPORT_FILE): QDEP_EXPORT_FILE = $$QDEP_GENERATED_DIR/$$lower("$${{TARGET}}_export.pri")
+
 isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "==="
 isEmpty(__QDEP_TUPLE_SEPERATOR): __QDEP_TUPLE_SEPERATOR = "---"
 
@@ -365,6 +404,13 @@ defineTest(qdepCreateExportPri) {{
 		out_file_data += $$qdepOutQuote(__QDEP_INCLUDE_CACHE, $$dep_hash)
 	}}
 	
+	# write startup hooks
+	static|staticlib {{
+		out_file_data += "debug_and_release:CONFIG(release, debug|release): $$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/release/qdep_$${{TARGET}}_hooks.h)"
+		out_file_data += "else:debug_and_release:CONFIG(debug, debug|release): $$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/debug/qdep_$${{TARGET}}_hooks.h)"
+		out_file_data += "else: $$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/qdep_$${{TARGET}}_hooks.h)"
+	}}
+	
 	# write library linkage
 	!qdep_no_link {{
 		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
@@ -411,9 +457,26 @@ defineReplace(qdepLinkExpand) {{
 	for(link_dep, QDEP_LINK_DEPENDS): \\
 	!include($$qdepLinkExpand($$link_dep)): \\
 	error("Failed to include linked library $$link_dep")
+	
+# in case there are static libraries, reference their hooks (as special compiler, only for non-static apps/libs)
+!static:!staticlib:!isEmpty(__QDEP_HOOK_FILES) {{
+	__qdep_hook_importer_c.name = qdep hookimp ${{QMAKE_FILE_IN}}
+	__qdep_hook_importer_c.input = __QDEP_HOOK_FILES
+	__qdep_hook_importer_c.variable_out = GENERATED_SOURCES
+	__qdep_hook_importer_c.commands = $$QDEP_TOOL hookimp ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
+	__qdep_hook_importer_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_imported_hooks.cpp
+	__qdep_hook_importer_c.CONFIG += target_predeps combine
+	__qdep_hook_importer_c.depends += $$QDEP_PATH
+	QMAKE_EXTRA_COMPILERS += __qdep_hook_importer_c
+}}
 
 # Collect all dependencies and then include them
 !isEmpty(QDEP_DEPENDS): {{
+	__qdep_cached_hooks = $$QDEP_HOOK_FNS
+	QDEP_HOOK_FNS = 
+	__qdep_cached_resources = $$RESOURCES
+	RESOURCES = 
+	
 	!qdepCollectDependencies($$QDEP_DEPENDS):error("Failed to collect all dependencies")
 	else:for(dep, __QDEP_INCLUDE_CACHE):equals($${{dep}}.local, 1) {{
 		__qdep_define_offset = $$size(DEFINES)
@@ -427,20 +490,19 @@ defineReplace(qdepLinkExpand) {{
 			}}
 		}} else:error("Failed to include pri file $$first($${{dep}}.package)")
 	}}
+	
+	QDEP_HOOK_FNS += $$__qdep_cached_hooks
+	RESOURCES += $$__qdep_cached_resources
 }}
 
 # create special target for resource hooks in static libs
 static|staticlib {{
 	!isEmpty(QDEP_HOOK_FNS): __qdep_hook_prefix = --hooks $$QDEP_HOOK_FNS
-	debug_and_release {{
-		CONFIG(release, debug|release): QDEP_GENERATED_SOURCES_DIR = $${{QDEP_GENERATED_SOURCES_DIR}}/release
-		else:CONFIG(debug, debug|release): QDEP_GENERATED_SOURCES_DIR = $${{QDEP_GENERATED_SOURCES_DIR}}/debug
-	}}	
 	__qdep_hook_generator_c.name = qdep hookgen ${{QMAKE_FILE_IN}}
-	__qdep_hook_generator_c.input = RESOURCES 
+	__qdep_hook_generator_c.input = _PRO_FILE_ RESOURCES 
 	__qdep_hook_generator_c.variable_out = HEADERS
 	__qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen $$__qdep_hook_prefix -- $${{TARGET}} ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
-	__qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_$${{TARGET}}_hooks$${{first(QMAKE_EXT_H)}}
+	__qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_$${{TARGET}}_hooks.h
 	__qdep_hook_generator_c.CONFIG += target_predeps combine no_link
 	__qdep_hook_generator_c.depends += $$QDEP_PATH
 	QMAKE_EXTRA_COMPILERS += __qdep_hook_generator_c
