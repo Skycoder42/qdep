@@ -204,7 +204,7 @@ def hookgen(arguments):
 		out_file.write("#ifndef {}\n".format(inc_guard))
 		out_file.write("#define {}\n\n".format(inc_guard))
 
-		for hook in arguments.hooks:
+		for hook in arguments.hooks if arguments.hooks is not None else []:
 			out_file.write("void {}();\n".format(hook))
 
 		out_file.write("\ninline void qdep_{}_init() {{\n".format(arguments.prefix))
@@ -245,7 +245,7 @@ def main():
 	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects.")
 	parser.add_argument("-v", "--version", action="version", version="%(prog)s 1.0.0")
 
-	sub_args = parser.add_subparsers(dest="operation", required=True, title="Operations", metavar="{operation}")
+	sub_args = parser.add_subparsers(dest="operation", title="Operations", metavar="{operation}")
 
 	prfgen_parser = sub_args.add_parser("prfgen", help="Generate a qmake project feature (prf) for the given qmake.")
 	prfgen_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for.")
