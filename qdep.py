@@ -204,11 +204,9 @@ def hookgen(arguments):
 		out_file.write("#ifndef {}\n".format(inc_guard))
 		out_file.write("#define {}\n\n".format(inc_guard))
 
-		out_file.write("namespace {} {{\n\n".format(arguments.namespace))
-		out_file.write("inline void init_resources() {\n")
+		out_file.write("inline void {}_init_resources() {{\n".format(arguments.prefix))
 		for resource in arguments.resources:
 			out_file.write("\tQ_INIT_RESOURCE({});\n".format(path.splitext(path.basename(resource))[0]))
-		out_file.write("}\n\n")
 		out_file.write("}\n\n")
 
 		out_file.write("#endif //{}\n".format(inc_guard))
@@ -234,7 +232,7 @@ def main():
 	pri_resolve_parser.add_argument("version", action="store", nargs="?", metavar="latest-version", help="The previousley cached version for packages with no version identifier.")
 
 	hookgen_parser = sub_args.add_parser("hookgen", help="[INTERNAL] Generate a header file with a method to load all resource hooks.")
-	hookgen_parser.add_argument("-n", "--ns", "--namespace", action="store", default="qdep", dest="namespace", help="The namespace to place the init_resources method in.")
+	hookgen_parser.add_argument("-p", "--prefix", action="store", default="qdep", dest="prefix", help="The namespace to place the init_resources method in.")
 	hookgen_parser.add_argument("header", action="store", metavar="header", help="The path to the header-file to be generated.")
 	hookgen_parser.add_argument("resources", action="store", nargs="+", metavar="resource", help="Paths to the resource-files to generate the hooks for.")
 

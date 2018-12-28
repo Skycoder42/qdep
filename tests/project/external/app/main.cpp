@@ -1,4 +1,5 @@
 #include <QCoreApplication>
+#include <QFile>
 #include <tests.h>
 
 #include <libstatic.h>
@@ -14,7 +15,7 @@ int main(int argc, char **argv)
 {
     QCoreApplication app{argc, argv};
 
-    auto test = Y(42);
+    qdep_init_resources();
 
     LibStatic stat;
     COMPARE(stat.magicNumber(), 422);
@@ -26,6 +27,9 @@ int main(int argc, char **argv)
 
     COMPARE(dummy_sta<int>(42), 42);
     COMPARE(dummy_dyn<int>(42), 42);
+
+    VERIFY(QFile::exists(":/package2.txt"));
+    VERIFY(QFile::exists(":/static.txt"));
 
     return 0;
 }

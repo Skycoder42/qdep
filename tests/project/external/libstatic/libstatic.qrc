@@ -1,5 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>package2.txt</file>
+        <file>static.txt</file>
     </qresource>
 </RCC>
