@@ -199,6 +199,8 @@ def pri_resolve(arguments):
 
 
 def hookgen(arguments):
+	print(arguments.hooks, file=sys.stderr)
+	print(arguments.resources, file=sys.stderr)
 	inc_guard = path.basename(arguments.header).replace(".", "_").upper()
 	with open(arguments.header, "w") as out_file:
 		out_file.write("#ifndef {}\n".format(inc_guard))
@@ -232,9 +234,10 @@ def main():
 	pri_resolve_parser.add_argument("version", action="store", nargs="?", metavar="latest-version", help="The previousley cached version for packages with no version identifier.")
 
 	hookgen_parser = sub_args.add_parser("hookgen", help="[INTERNAL] Generate a header file with a method to load all resource hooks.")
+	hookgen_parser.add_argument("--hooks", action="store", nargs="*", help="The path to a qmake executable to place the prf file for.")
 	hookgen_parser.add_argument("prefix", action="store", help="The target name to use as part of the generated hook method.")
 	hookgen_parser.add_argument("header", action="store", help="The path to the header-file to be generated.")
-	hookgen_parser.add_argument("resources", action="store", nargs="+", metavar="resource", help="Paths to the resource-files to generate the hooks for.")
+	hookgen_parser.add_argument("resources", action="store", nargs="*", metavar="resource", help="Paths to the resource-files to generate the hooks for.")
 
 	res = parser.parse_args()
 	if res.operation == "prfgen":
@@ -428,18 +431,19 @@ defineReplace(qdepLinkExpand) {{
 
 # create special target for resource hooks in static libs
 static|staticlib {{
+	!isEmpty(QDEP_HOOK_FNS): __qdep_hook_prefix = --hooks $$QDEP_HOOK_FNS
 	debug_and_release {{
 		CONFIG(release, debug|release): QDEP_GENERATED_SOURCES_DIR = $${{QDEP_GENERATED_SOURCES_DIR}}/release
 		else:CONFIG(debug, debug|release): QDEP_GENERATED_SOURCES_DIR = $${{QDEP_GENERATED_SOURCES_DIR}}/debug
 	}}	
-	qdep_hook_generator_c.name = qdep hookgen ${{QMAKE_FILE_IN}}
-	qdep_hook_generator_c.input = RESOURCES
-	qdep_hook_generator_c.variable_out = HEADERS
-	qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen $${{TARGET}} ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
-	qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_$${{TARGET}}_hooks$${{first(QMAKE_EXT_H)}}
-	qdep_hook_generator_c.CONFIG += target_predeps combine
-	qdep_hook_generator_c.depends += $$QDEP_PATH
-	QMAKE_EXTRA_COMPILERS += qdep_hook_generator_c
+	__qdep_hook_generator_c.name = qdep hookgen ${{QMAKE_FILE_IN}}
+	__qdep_hook_generator_c.input = RESOURCES 
+	__qdep_hook_generator_c.variable_out = HEADERS
+	__qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen $$__qdep_hook_prefix -- $${{TARGET}} ${{QMAKE_FILE_OUT}} ${{QMAKE_FILE_IN}}
+	__qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_$${{TARGET}}_hooks$${{first(QMAKE_EXT_H)}}
+	__qdep_hook_generator_c.CONFIG += target_predeps combine no_link
+	__qdep_hook_generator_c.depends += $$QDEP_PATH
+	QMAKE_EXTRA_COMPILERS += __qdep_hook_generator_c
 }}
 
 # Create qdep pri export, if modules should be exported

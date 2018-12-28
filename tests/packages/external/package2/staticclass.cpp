@@ -7,7 +7,7 @@ bool _startup_run = false;
 
 }
 
-void libstatic_startup_hook()
+void staticclass_startup_hook()
 {
     _startup_run = true;
 }

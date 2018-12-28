@@ -8,14 +8,12 @@
 #include <extra_sta.h>
 #include <extra_dyn.h>
 
-//#include <qdep_resource_hooks.h>
-#include "/tmp/testbuild/external/libstatic/qdep_resource_hooks.h"
-
 int main(int argc, char **argv)
 {
     QCoreApplication app{argc, argv};
 
-    qdep_init_resources();
+    VERIFY(StaticClass::startupRun());
+    VERIFY(LibStatic::libStartupRun());
 
     LibStatic stat;
     COMPARE(stat.magicNumber(), 422);

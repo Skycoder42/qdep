@@ -6,6 +6,8 @@
 class LibStatic : public StaticClass
 {
 public:
+    static bool libStartupRun();
+
     double magicFraction();
 };
 
