@@ -2,6 +2,7 @@
 #define SIMPLE_H
 
 #include <QObject>
+#include <QCoreApplication>
 #include <QString>
 
 class Simple
