@@ -14,6 +14,7 @@ public:
     QString value;
 
     QString transform() const;
+    QString translate() const;
 };
 
 #endif

@@ -263,7 +263,7 @@ def main():
 	pri_resolve_parser.add_argument("--no-pull", dest="pull", action="store_false", help="Do not update existing packages that are based on branches instead of tags.")
 	pri_resolve_parser.add_argument("--no-clone", dest="clone", action="store_false", help="Do not allow installation of new packages. Trying so will lead to an error. Updating existing packages is still possible.")
 	pri_resolve_parser.add_argument("package", action="store", metavar="package", help="The package identifier of the package to be downloaded and resolved.")
-	pri_resolve_parser.add_argument("version", action="store", nargs="?", metavar="latest-version", help="The previousley cached version for packages with no version identifier.")
+	pri_resolve_parser.add_argument("version", action="store", nargs="?", metavar="latest-version", help="The previously cached version for packages with no version identifier.")
 
 	hookgen_parser = sub_args.add_parser("hookgen", help="[INTERNAL] Generate a header file with a method to load all resource hooks.")
 	hookgen_parser.add_argument("--hooks", action="store", nargs="*", help="The names of additional hook functions to be referenced.")
