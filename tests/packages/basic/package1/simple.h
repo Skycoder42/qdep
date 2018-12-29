@@ -7,6 +7,7 @@
 class Simple
 {
     Q_GADGET
+    Q_DECLARE_TR_FUNCTIONS(Simple)
 
     Q_PROPERTY(QString value MEMBER value)
 
