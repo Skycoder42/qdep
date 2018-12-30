@@ -45,10 +45,6 @@ except ImportError:
 			pass
 
 
-# globals
-git_repo_cache = set()
-
-
 def get_cache_dir(pkg_url, pkg_branch):
 	cache_dir = os.getenv("QDEP_CACHE_DIR", get_cache_dir_default())
 	cache_dir = path.join(cache_dir, "src", hashlib.sha3_256(pkg_url.encode("UTF-8")).hexdigest(), pkg_branch)
@@ -120,14 +116,11 @@ def get_latest_tag(pkg_url):
 
 
 def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
-	global git_repo_cache
 
 	if pkg_branch is None:
 		pkg_branch = get_latest_tag(pkg_url)
 
 	cache_dir = get_cache_dir(pkg_url, pkg_branch)
-	if cache_dir in git_repo_cache:
-		return cache_dir
 
 	locker = FileLocker(cache_dir)
 	locker.acquire()
@@ -156,12 +149,10 @@ def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
 					os.chmod(f_path, cur_perm & NO_WRITE_MASK)
 	except:
 		shutil.rmtree(cache_dir, ignore_errors=True)
-		git_repo_cache.discard(cache_dir)
 		raise
 	finally:
 		locker.release()
 
-	git_repo_cache.add(cache_dir)
 	return cache_dir, pkg_branch
 
 
