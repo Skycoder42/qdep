@@ -10,6 +10,10 @@ QDEP_DEPENDS += $${REPO_BASE}@master/tests/packages/basic/package1/package1.pri
 QDEP_DEPENDS += $${REPO_BASE}@master/tests/packages/basic/package2/package2.pri
 QDEP_DEPENDS += $${REPO_BASE}@master/tests/packages/basic/package1/package1.pri
 
+TRANSLATIONS += \
+    basic_de.ts \
+    basic_ja.ts
+
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !load(qdep):error("Failed to load qdep feature")
 

@@ -8,7 +8,7 @@ int main(int argc, char **argv)
     QCoreApplication app{argc, argv};
 
     Simple simple;
-    simple.value = "Hello World";
+    simple.value = QCoreApplication::translate("GLOBAL", "Hello Tree");
     COMPARE(simple.transform(), QStringLiteral("hello world"));
     return 0;
 }
