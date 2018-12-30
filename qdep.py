@@ -9,6 +9,7 @@ import re
 import hashlib
 import shutil
 import stat
+import tempfile
 
 # import appdirs with basic fallback
 try:
@@ -174,6 +175,19 @@ def prfgen(arguments):
 	return 0
 
 
+def lupdate(arguments):
+	qmake_res = subprocess.run([arguments.qmake, "-query", "QT_HOST_BINS"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+	lupdate_path = path.join(str(qmake_res.stdout).strip(), "lupdate")
+	print(lupdate_path)
+	with tempfile.TemporaryDirectory() as tmp_dir:
+		tmp_pro_path = path.join(tmp_dir, "lupdate.pro")
+		with open(tmp_pro_path, "w") as tmp_file:
+			tmp_file.write("include({})\n".format(arguments.pri_path))
+			tmp_file.write("TRANSLATIONS = $$QDEP_TRANSLATIONS\n")
+		subprocess.run([lupdate_path] + arguments.largs + [tmp_pro_path], check=True)
+	return 0
+
+
 def dephash(arguments):
 	for package in arguments.input:
 		pkg_url, pkg_branch, pkg_path = package_resolve(package)
@@ -256,6 +270,11 @@ def main():
 	prfgen_parser = sub_args.add_parser("prfgen", help="Generate a qmake project feature (prf) for the given qmake.")
 	prfgen_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for.")
 
+	lupdate_parser = sub_args.add_parser("lupdate", help="...")
+	lupdate_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to find the corresponding lupdate for.")
+	lupdate_parser.add_argument("--pri-file", dest="pri_path", action="store", help="The path to the pri-file that contains a QDEP_TRANSLATIONS variable, to generate translations for.")
+	lupdate_parser.add_argument("largs", action="store", nargs="*", metavar="lupdate-argument", help="Additionals arguments to be passed to lupdate. MUST be proceeded by '--'!")
+
 	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
 	dephash_parser.add_argument("input", action="store", nargs="*", metavar="package", help="The packages to generate hashes for.")
 
@@ -289,6 +308,8 @@ def main():
 		result = hookgen(res)
 	elif res.operation == "hookimp":
 		result = hookimp(res)
+	elif res.operation == "lupdate":
+		result = lupdate(res)
 	else:
 		result = -1
 	sys.exit(result)
