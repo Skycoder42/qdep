@@ -10,8 +10,8 @@ int main(int argc, char **argv)
     QLocale::setDefault(QLocale{QLocale::German, QLocale::Germany});
 
     Simple simple;
-    simple.value = "Hello World";
-    COMPARE(simple.transform(), QString("hello world"));
-    COMPARE(simple.translate(), QString("Hallo Welt"));
+    simple.value = QCoreApplication::translate("GLOBAL", "Hello Tree");
+    COMPARE(simple.transform(), QString("hello tree"));
+    //COMPARE(simple.translate(), QString("Hallo Welt"));
     return 0;
 }
