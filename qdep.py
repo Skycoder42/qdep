@@ -171,7 +171,6 @@ def prfgen(arguments):
 def lupdate(arguments):
 	qmake_res = subprocess.run([arguments.qmake, "-query", "QT_HOST_BINS"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
 	lupdate_path = path.join(str(qmake_res.stdout).strip(), "lupdate")
-	print(lupdate_path)
 	with tempfile.TemporaryDirectory() as tmp_dir:
 		tmp_pro_path = path.join(tmp_dir, "lupdate.pro")
 		with open(tmp_pro_path, "w") as tmp_file:
@@ -254,6 +253,35 @@ def hookimp(arguments):
 	return 0
 
 
+def lconvert(arguments):
+	# sort combine args into a map of the languages
+	sub_map = dict()
+	for sub_arg in arguments.combine:
+		sub_base = path.splitext(path.basename(sub_arg))[0]
+		sub_args = sub_base.split("_")[1:]
+		for arg_cnt in range(len(sub_args)):
+			suffix = "_".join(sub_args[arg_cnt:])
+			if suffix not in sub_map:
+				sub_map[suffix] = []
+			sub_map[suffix].append(path.join(arguments.qmdir, sub_base + ".qm"))
+
+	# find the qm files to combine with the input
+	target_base = path.splitext(path.basename(arguments.tsfile))[0]
+	ts_args = target_base.split("_")[1:]
+	combine_list = []
+	for arg_cnt in range(len(ts_args) - 1, -1, -1):
+		suffix = "_".join(ts_args[arg_cnt:])
+		if suffix in sub_map:
+			combine_list = combine_list + sub_map[suffix]
+	combine_list.append(path.join(arguments.qmdir, target_base + ".qm"))
+
+	# run lconvert
+	qmake_res = subprocess.run([arguments.qmake, "-query", "QT_HOST_BINS"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+	lupdate_path = path.join(str(qmake_res.stdout).strip(), "lconvert")
+	subprocess.run([lupdate_path, "-if", "qm", "-i"] + combine_list + ["-of", "qm", "-o", arguments.outfile], check=True)
+	return 0
+
+
 def main():
 	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects.")
 	parser.add_argument("-v", "--version", action="version", version="%(prog)s 1.0.0")
@@ -290,6 +318,13 @@ def main():
 	hookimp_parser.add_argument("dummy", action="store", metavar="pro-file", help="The path to the current pro file - needed for Makefile rules.")
 	hookimp_parser.add_argument("headers", action="store", nargs="*", metavar="header", help="Paths to the header-files that contain hooks to be run.")
 
+	lconvert_parser = sub_args.add_parser("lconvert", help="[INTERNAL] Combine qm-files of the same language into one big file.")
+	lconvert_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to find the corresponding lconvert for.")
+	lconvert_parser.add_argument("--combine", action="store", nargs="*", help="The qdep ts files that should be combined into the real ones.")
+	lconvert_parser.add_argument("qmdir", action="store", help="The directory where to find the generated qm files.")
+	lconvert_parser.add_argument("tsfile", action="store", help="The path to the ts file to combine the corresponding qm files with.")
+	lconvert_parser.add_argument("outfile", action="store", help="The path to the qm-file to be generated.")
+
 	res = parser.parse_args()
 	if res.operation == "prfgen":
 		result = prfgen(res)
@@ -303,6 +338,8 @@ def main():
 		result = hookimp(res)
 	elif res.operation == "lupdate":
 		result = lupdate(res)
+	elif res.operation == "lconvert":
+		result = lconvert(res)
 	else:
 		result = -1
 	sys.exit(result)
@@ -319,6 +356,11 @@ isEmpty(QDEP_GENERATED_DIR): QDEP_GENERATED_DIR = $$OUT_PWD
 debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_SOURCES_DIR = $${QDEP_GENERATED_DIR}/release
 else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_SOURCES_DIR = $${QDEP_GENERATED_DIR}/debug
 else: QDEP_GENERATED_SOURCES_DIR = $$QDEP_GENERATED_DIR
+isEmpty(QDEP_GENERATED_QM_DIR): QDEP_GENERATED_QM_DIR = $$QDEP_GENERATED_DIR/.qm
+isEmpty(QDEP_LRELEASE) {
+	qtPrepareTool(QDEP_LRELEASE, lrelease)
+	QDEP_LRELEASE += -silent
+}
 
 isEmpty(QDEP_EXPORT_FILE): QDEP_EXPORT_FILE = $$QDEP_GENERATED_DIR/$$lower("$${TARGET}_export.pri")
 
@@ -526,7 +568,35 @@ static|staticlib {
 }
 
 # Create special targets for translations
-{
+!DebugBuild:!ReleaseBuild {
+	# compiler for base qm files
+	__qm_base_translator_c.name = lrelease ${QMAKE_FILE_IN}
+	__qm_base_translator_c.input = TRANSLATIONS QDEP_TRANSLATIONS 
+	__qm_base_translator_c.variable_out = QM_TRANSLATIONS
+	__qm_base_translator_c.commands = $$QDEP_LRELEASE ${QMAKE_FILE_IN} -qm ${QMAKE_FILE_OUT} 
+	__qm_base_translator_c.output = $$QDEP_GENERATED_QM_DIR/${QMAKE_FILE_BASE}.qm
+	__qm_base_translator_c.CONFIG += no_link
+	__qm_base_translator_c.depends += $$QDEP_LRELEASE_EXE
+	QMAKE_EXTRA_COMPILERS += __qm_base_translator_c
+	
+	qdep_no_qm_combine {
+		lrelease_target.depends += compiler___qm_base_translator_c_make_all
+	} else {
+		__qdep_ts_tmp = 
+		for(tsfile, QDEP_TRANSLATIONS) __qdep_ts_tmp += $$system_quote($$tsfile)
+		# compiler for final lconvert (combine)
+		__qdep_qm_combine_c.name = qdep lconvert ${QMAKE_FILE_IN}
+		__qdep_qm_combine_c.input = TRANSLATIONS 
+		__qdep_qm_combine_c.variable_out = QM_COMBINED_TRANSLATIONS
+		__qdep_qm_combine_c.commands = $$QDEP_TOOL lconvert --qmake $$QMAKE_QMAKE --combine $$__qdep_ts_tmp -- $$system_quote($$QDEP_GENERATED_QM_DIR) ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT} 
+		__qdep_qm_combine_c.output = $$QDEP_GENERATED_DIR/${QMAKE_FILE_BASE}.qm
+		__qdep_qm_combine_c.CONFIG += no_link
+		__qdep_qm_combine_c.depends += $$QDEP_PATH compiler___qm_base_translator_c_make_all
+		QMAKE_EXTRA_COMPILERS += __qdep_qm_combine_c
+		lrelease_target.depends += compiler___qdep_qm_combine_c_make_all
+	}
+	lrelease_target.target = lrelease
+	QMAKE_EXTRA_TARGETS += lrelease_target
 }
 
 # Create qdep pri export, if modules should be exported
