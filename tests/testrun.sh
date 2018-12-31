@@ -23,3 +23,7 @@ make lrelease
 
 export LD_LIBRARY_PATH="$BUILD_PATH/external/libdynamic/:$LD_LIBRARY_PATH"
 make run-tests
+
+make INSTALL_ROOT="$BUILD_PATH/install" install
+[ -e "$BUILD_PATH/install$($QMAKE -query QT_INSTALL_TRANSLATIONS)/single_de.qm" ]
+[ -e "$BUILD_PATH/install$($QMAKE -query QT_INSTALL_TRANSLATIONS)/single_ja.qm" ]

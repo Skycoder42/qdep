@@ -16,6 +16,9 @@ TRANSLATIONS += \
 
 DEFINES += "\"TS_DIR=\\\"$$OUT_PWD\\\"\""
 
+qdep_ts_target.path = $$[QT_INSTALL_TRANSLATIONS]
+INSTALLS += qdep_ts_target
+
 !load(qdep):error("Failed to load qdep feature")
 
 include(../testrun.pri)

@@ -590,14 +590,14 @@ static|staticlib {
 	qdep_no_qm_combine {
 		lrelease_target.depends += compiler___qm_base_translator_c_make_all
 	} else {
+		# compiler for final lconvert (combine)
 		__qdep_ts_tmp = 
 		for(tsfile, QDEP_TRANSLATIONS) __qdep_ts_tmp += $$system_quote($$tsfile)
-		# compiler for final lconvert (combine)
 		__qdep_qm_combine_c.name = qdep lconvert ${QMAKE_FILE_IN}
 		__qdep_qm_combine_c.input = TRANSLATIONS 
 		__qdep_qm_combine_c.variable_out = QM_COMBINED_TRANSLATIONS
 		__qdep_qm_combine_c.commands = $$QDEP_TOOL lconvert --qmake $$QMAKE_QMAKE --combine $$__qdep_ts_tmp -- $$system_quote($$QDEP_GENERATED_QM_DIR) ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT} 
-		__qdep_qm_combine_c.output = $$QDEP_GENERATED_DIR/${QMAKE_FILE_BASE}.qm
+		__qdep_qm_combine_c.output = $$QDEP_GENERATED_SOURCES_DIR/${QMAKE_FILE_BASE}.qm
 		__qdep_qm_combine_c.CONFIG += no_link
 		__qdep_qm_combine_c.depends += $$QDEP_PATH compiler___qm_base_translator_c_make_all
 		QMAKE_EXTRA_COMPILERS += __qdep_qm_combine_c
@@ -605,6 +605,20 @@ static|staticlib {
 	}
 	lrelease_target.target = lrelease
 	QMAKE_EXTRA_TARGETS += lrelease_target
+	
+	# install target
+	qdep_ts_target.CONFIG += no_check_exist
+	qdep_no_qm_combine {
+		for(tsfile, $$list($$TRANSLATIONS $$QDEP_TRANSLATIONS)) {
+			tsBase = $$basename(tsfile)
+			qdep_ts_target.files += "$$QDEP_GENERATED_QM_DIR/$$replace(tsBase, \.ts, .qm)"
+		}
+	} else {
+		for(tsfile, TRANSLATIONS) {
+			tsBase = $$basename(tsfile)
+			qdep_ts_target.files += "$$QDEP_GENERATED_SOURCES_DIR/$$replace(tsBase, \.ts, .qm)"
+		}
+	}
 }
 
 # Create qdep pri export, if modules should be exported

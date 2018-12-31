@@ -9,5 +9,6 @@ A very basic yet simple to use dependency management tool for qmake based projec
 - tests: qdepCollectDependencies, qdepCollectLinkDependencies, qdepSplitPrivateVar
 - replaces: qdepJoinPrivateVar
 - env_vars: QDEP_CACHE_DIR, QDEP_SOURCE_OVERRIDE, QDEP_DEFAULT_PKG_FN
+- install targets: qdep_ts_target
 - private:
     - vars: __QDEP_INCLUDE_CACHE, __QDEP_REAL_DEPS_STACK, __QDEP_PRIVATE_VARS_EXPORT, __QDEP_PRIVATE_SEPERATOR, __QDEP_TUPLE_SEPERATOR, __QDEP_RESOURCES_OFFSET, __QDEP_RESOURCES_SUBSET, __QDEP_HOOK_FILES
