@@ -612,7 +612,7 @@ static|staticlib {
 	__qm_base_translator2_c.CONFIG += no_link
 	__qm_base_translator2_c.depends += $$QDEP_LRELEASE_EXE
 	QMAKE_EXTRA_COMPILERS += __qm_base_translator2_c
-	
+
 	lrelease_target.depends += compiler___qm_base_translator1_c_make_all compiler___qm_base_translator2_c_make_all
 	
 	# install target
@@ -621,9 +621,24 @@ static|staticlib {
 		qdep_ts_target.files += "$$QDEP_GENERATED_QM_DIR/$$replace(tsBase, \.ts, .qm)"
 	}
 }
-qdep_ts_target.CONFIG += no_check_exist
+
+# custom lrelease target to invoke the translation generation
+debug_and_release:!DebugBuild:!ReleaseBuild {
+	lrelease_target.depends =
+
+	lrelease_all.target = lrelease_all
+	lrelease_all.CONFIG += recursive
+	lrelease_all.recurse_target = lrelease
+	QMAKE_EXTRA_TARGETS += lrelease_all
+
+	CONFIG(debug, debug|release): lrelease_target.depends += debug-lrelease_all
+	CONFIG(release, debug|release): lrelease_target.depends += release-lrelease_all
+}
 lrelease_target.target = lrelease
 QMAKE_EXTRA_TARGETS += lrelease_target
+
+# translation install target
+qdep_ts_target.CONFIG += no_check_exist
 
 # Create qdep pri export, if modules should be exported
 qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
