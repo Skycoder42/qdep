@@ -284,7 +284,7 @@ def lconvert(arguments):
 
 def main():
 	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects.")
-	parser.add_argument("-v", "--version", action="version", version="%(prog)s 1.0.0")
+	parser.add_argument("-v", "--version", action="version", version="1.0.0")
 
 	sub_args = parser.add_subparsers(dest="operation", title="Operations", metavar="{operation}")
 
@@ -346,17 +346,25 @@ def main():
 
 
 qdep_prf = """isEmpty(QDEP_VERSION): QDEP_VERSION = 1.0.0
-isEmpty(QDEP_CACHE_SCOPE): QDEP_CACHE_SCOPE = stash
 isEmpty(QDEP_TOOL) {
 	win32: QDEP_TOOL = python $$system_path($$QDEP_PATH)
 	else: QDEP_TOOL = $$system_path($$QDEP_PATH)
 }
+
+# verify versions are correct
+__qdep_script_version = $$system($$QDEP_TOOL --version)
+!equals(QDEP_VERSION, $$__qdep_script_version):error("qdep.py script version ($$__qdep_script_version) is different to qdep.prf version ($$QDEP_VERSION)! Run '$$QDEP_TOOL prfgen --qmake $$QMAKE_QMAKE' to update the prf file!")
+
+# set some variables
+isEmpty(QDEP_CACHE_SCOPE): QDEP_CACHE_SCOPE = stash
 
 isEmpty(QDEP_GENERATED_DIR): QDEP_GENERATED_DIR = $$OUT_PWD
 debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_SOURCES_DIR = $${QDEP_GENERATED_DIR}/release
 else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_SOURCES_DIR = $${QDEP_GENERATED_DIR}/debug
 else: QDEP_GENERATED_SOURCES_DIR = $$QDEP_GENERATED_DIR
 isEmpty(QDEP_GENERATED_QM_DIR): QDEP_GENERATED_QM_DIR = $$QDEP_GENERATED_DIR/.qm
+debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_QM_DIR = $${QDEP_GENERATED_QM_DIR}/release
+else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_QM_DIR = $${QDEP_GENERATED_QM_DIR}/debug
 isEmpty(QDEP_LRELEASE) {
 	qtPrepareTool(QDEP_LRELEASE, lrelease)
 	QDEP_LRELEASE += -silent
@@ -478,10 +486,10 @@ defineTest(qdepCreateExportPri) {
 		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
 		
 		out_libdir = $$shadowed($$_PRO_FILE_PWD_)
-		win32 {
+		debug_and_release {
 			out_file_data += "CONFIG(release, debug|release): $$qdepOutQuote(LIBS, "-L$${out_libdir}/release/")"
 			out_file_data += "else:CONFIG(debug, debug|release): $$qdepOutQuote(LIBS, "-L$${out_libdir}/debug/")"
-		} else:unix: out_file_data += $$qdepOutQuote(LIBS, "-L$${out_libdir}/")
+		} else: out_file_data += $$qdepOutQuote(LIBS, "-L$${out_libdir}/")
 		out_file_data += $$qdepOutQuote(LIBS, "-l$${TARGET}")
 		
 		static|staticlib {
@@ -568,7 +576,7 @@ static|staticlib {
 }
 
 # Create special targets for translations
-!DebugBuild:!ReleaseBuild {
+{
 	# compiler for base qm files
 	__qm_base_translator_c.name = lrelease ${QMAKE_FILE_IN}
 	__qm_base_translator_c.input = TRANSLATIONS QDEP_TRANSLATIONS 
