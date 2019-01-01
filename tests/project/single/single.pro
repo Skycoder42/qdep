@@ -14,7 +14,9 @@ TRANSLATIONS += \
     single_de.ts \
     single_ja.ts
 
-DEFINES += "\"TS_DIR=\\\"$$OUT_PWD\\\"\""
+debug_and_release:CONFIG(release, debug|release): DEFINES += "\"TS_DIR=\\\"$$OUT_PWD/release\\\"\""
+debug_and_release:CONFIG(debug, debug|release): DEFINES += "\"TS_DIR=\\\"$$OUT_PWD/debug\\\"\""
+else: DEFINES += "\"TS_DIR=\\\"$$OUT_PWD\\\"\""
 
 qdep_ts_target.path = $$[QT_INSTALL_TRANSLATIONS]
 INSTALLS += qdep_ts_target
