@@ -27,7 +27,7 @@ INCLUDEPATH += $$PWD
             runtarget.commands += $$escape_expand(\\n\\t)@set QT_PLUGIN_PATH=$$shadowed($$dirname(_QMAKE_CONF_))/plugins;$(QT_PLUGIN_PATH)
             runtarget.commands += $$escape_expand(\\n\\t)@set QML2_IMPORT_PATH=$$shadowed($$dirname(_QMAKE_CONF_))/qml;$(QML2_IMPORT_PATH)
             runtarget.commands += $$escape_expand(\\n\\t)@if exist $${outdir_helper}\\fail del $${outdir_helper}\\fail
-            runtarget.commands += $$escape_expand(\\n\\t)start /w call $(DESTDIR_TARGET) ^> $${outdir_helper}\\test.log ^|^| echo FAIL ^> $${outdir_helper}\\fail ^& exit 0
+            runtarget.commands += $$escape_expand(\\n\\t)start /w call $(DESTDIR_TARGET) 2^> $${outdir_helper}\\test.log ^|^| echo FAIL ^> $${outdir_helper}\\fail ^& exit 0
             runtarget.commands += $$escape_expand(\\n\\t)type $${outdir_helper}\\test.log
             runtarget.commands += $$escape_expand(\\n\\t)@if exist $${outdir_helper}\\fail exit 42
             QMAKE_EXTRA_TARGETS += runtarget
