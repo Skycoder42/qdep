@@ -15,7 +15,7 @@ TRANSLATIONS += \
     single_ja.ts
 
 debug_and_release:CONFIG(release, debug|release): DEFINES += "\"TS_DIR=\\\"$$OUT_PWD/release\\\"\""
-debug_and_release:CONFIG(debug, debug|release): DEFINES += "\"TS_DIR=\\\"$$OUT_PWD/debug\\\"\""
+else:debug_and_release:CONFIG(debug, debug|release): DEFINES += "\"TS_DIR=\\\"$$OUT_PWD/debug\\\"\""
 else: DEFINES += "\"TS_DIR=\\\"$$OUT_PWD\\\"\""
 
 force_ts|CONFIG(release, debug|release): DEFINES += WITH_TRANSLATIONS
