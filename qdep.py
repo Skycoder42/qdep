@@ -633,7 +633,7 @@ debug_and_release:!DebugBuild:!ReleaseBuild {
 
 	CONFIG(debug, debug|release): lrelease_target.depends += debug-lrelease_all
 	CONFIG(release, debug|release): lrelease_target.depends += release-lrelease_all
-}
+} else:ios:equals(TEMPLATE, app): lrelease_target.depends = first
 lrelease_target.target = lrelease
 QMAKE_EXTRA_TARGETS += lrelease_target
 
