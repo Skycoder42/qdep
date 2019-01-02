@@ -253,7 +253,7 @@ def hookimp(arguments):
 	return 0
 
 
-def lrelease(arguments):
+def lconvert(arguments):
 	# sort combine args into a map of the languages
 	sub_map = dict()
 	for sub_arg in arguments.combine:
@@ -268,14 +268,15 @@ def lrelease(arguments):
 	# find the qm files to combine with the input
 	target_base = path.splitext(path.basename(arguments.tsfile))[0]
 	ts_args = target_base.split("_")[1:]
-	combine_list = [arguments.tsfile]
-	for arg_cnt in range(len(ts_args)):
+	combine_list = []
+	for arg_cnt in range(len(ts_args) - 1, -1, -1):
 		suffix = "_".join(ts_args[arg_cnt:])
 		if suffix in sub_map:
 			combine_list = combine_list + sub_map[suffix]
+	combine_list.append(arguments.tsfile)
 
 	# run lconvert
-	subprocess.run(arguments.largs + combine_list + ["-qm", arguments.outfile], check=True)
+	subprocess.run(arguments.largs + ["-if", "ts", "-i"] + combine_list + ["-of", "ts", "-o", arguments.outfile], check=True)
 	return 0
 
 
@@ -315,11 +316,11 @@ def main():
 	hookimp_parser.add_argument("dummy", action="store", metavar="pro-file", help="The path to the current pro file - needed for Makefile rules.")
 	hookimp_parser.add_argument("headers", action="store", nargs="*", metavar="header", help="Paths to the header-files that contain hooks to be run.")
 
-	lrelease_parser = sub_args.add_parser("lrelease", help="[INTERNAL] Translate ts files and combine them with translations from qdep packages.")
-	lrelease_parser.add_argument("--combine", action="store", nargs="*", help="The qdep ts files that should be combined into the real ones.")
-	lrelease_parser.add_argument("tsfile", action="store", help="The path to the ts file to combine with the qdep ts files and release as qm file.")
-	lrelease_parser.add_argument("outfile", action="store", help="The path to the qm-file to be generated.")
-	lrelease_parser.add_argument("largs", action="store", nargs="+", metavar="lrelease-tool", help="Path to the lrelease tool as well as additional arguments to it")
+	lconvert_parser = sub_args.add_parser("lconvert", help="[INTERNAL] Combine ts files with translations from qdep packages.")
+	lconvert_parser.add_argument("--combine", action="store", nargs="*", help="The qdep ts files that should be combined into the real ones.")
+	lconvert_parser.add_argument("tsfile", action="store", help="The path to the ts file to combine with the qdep ts files.")
+	lconvert_parser.add_argument("outfile", action="store", help="The path to the ts file to be generated.")
+	lconvert_parser.add_argument("largs", action="store", nargs="+", metavar="lconvert-tool", help="Path to the lconvert tool as well as additional arguments to it")
 
 	res = parser.parse_args()
 	if res.operation == "prfgen":
@@ -334,8 +335,8 @@ def main():
 		result = hookgen(res)
 	elif res.operation == "hookimp":
 		result = hookimp(res)
-	elif res.operation == "lrelease":
-		result = lrelease(res)
+	elif res.operation == "lconvert":
+		result = lconvert(res)
 	else:
 		result = -1
 	sys.exit(result)
@@ -358,12 +359,12 @@ isEmpty(QDEP_GENERATED_DIR): QDEP_GENERATED_DIR = $$OUT_PWD
 debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_SOURCES_DIR = $${QDEP_GENERATED_DIR}/release
 else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_SOURCES_DIR = $${QDEP_GENERATED_DIR}/debug
 else: QDEP_GENERATED_SOURCES_DIR = $$QDEP_GENERATED_DIR
-isEmpty(QDEP_GENERATED_QM_DIR): QDEP_GENERATED_QM_DIR = $$QDEP_GENERATED_DIR
-debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_QM_DIR = $${QDEP_GENERATED_QM_DIR}/release
-else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_QM_DIR = $${QDEP_GENERATED_QM_DIR}/debug
-isEmpty(QDEP_LRELEASE) {
-	qtPrepareTool(QDEP_LRELEASE, lrelease)
-	QDEP_LRELEASE += -silent
+isEmpty(QDEP_GENERATED_TS_DIR): QDEP_GENERATED_TS_DIR = $$QDEP_GENERATED_DIR/.qdepts
+debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_TS_DIR = $${QDEP_GENERATED_QM_DIR}/release
+else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_TS_DIR = $${QDEP_GENERATED_QM_DIR}/debug
+isEmpty(QDEP_LCONVERT) {
+	qtPrepareTool(QDEP_LCONVERT, lconvert)
+	QDEP_LCONVERT += -sort-contexts 
 }
 
 isEmpty(QDEP_EXPORT_FILE): QDEP_EXPORT_FILE = $$QDEP_GENERATED_DIR/$$lower("$${TARGET}_export.pri")
@@ -573,72 +574,37 @@ static|staticlib {
 
 # Create special targets for translations
 !qdep_no_qm_combine {
+	# move translations into temporary var for the compiler to work
+	__QDEP_ORIGINAL_TRANSLATIONS = $$TRANSLATIONS
+	TRANSLATIONS = 
+
 	# compiler for combined translations
 	__qdep_ts_tmp = 
 	for(tsfile, QDEP_TRANSLATIONS) __qdep_ts_tmp += $$system_quote($$tsfile)
 	__qdep_qm_combine_c.name = qdep lrelease ${QMAKE_FILE_IN}
-	__qdep_qm_combine_c.input = TRANSLATIONS 
-	__qdep_qm_combine_c.variable_out = QDEP_TRANSLATIONS_QM
-	__qdep_qm_combine_c.commands = $$QDEP_TOOL lrelease --combine $$__qdep_ts_tmp -- ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT} $$QDEP_LRELEASE
-	__qdep_qm_combine_c.output = $$QDEP_GENERATED_QM_DIR/${QMAKE_FILE_BASE}.qm
+	__qdep_qm_combine_c.input = __QDEP_ORIGINAL_TRANSLATIONS 
+	__qdep_qm_combine_c.variable_out = TRANSLATIONS
+	__qdep_qm_combine_c.commands = $$QDEP_TOOL lconvert --combine $$__qdep_ts_tmp -- ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT} $$QDEP_LCONVERT
+	__qdep_qm_combine_c.output = $$QDEP_GENERATED_TS_DIR/${QMAKE_FILE_BASE}.ts
 	__qdep_qm_combine_c.CONFIG += no_link
-	__qdep_qm_combine_c.depends += $$QDEP_PATH $$QDEP_LRELEASE_EXE $$QDEP_TRANSLATIONS
+	__qdep_qm_combine_c.depends += $$QDEP_PATH $$QDEP_LCONVERT_EXE $$QDEP_TRANSLATIONS
 	QMAKE_EXTRA_COMPILERS += __qdep_qm_combine_c
 	
-	lrelease_target.depends += compiler___qdep_qm_combine_c_make_all
-	
-	# install target
-	for(tsfile, TRANSLATIONS) {
-		tsBase = $$basename(tsfile)
-		qdep_ts_target.files += "$$QDEP_GENERATED_QM_DIR/$$replace(tsBase, \.ts, .qm)"
+	# copy from lrelease.prf - needed as TRANSLATIONS is now empty
+	for(translation, $$list($$__QDEP_ORIGINAL_TRANSLATIONS $$EXTRA_TRANSLATIONS)) {
+		translation = $$basename(translation)
+		QM_FILES += $$OUT_PWD/$$LRELEASE_DIR/$$replace(translation, \\\\..*$, .qm)
 	}
 } else {
-	# compiler for base qm files
-	__qm_base_translator1_c.name = lrelease ${QMAKE_FILE_IN}
-	__qm_base_translator1_c.input = TRANSLATIONS 
-	__qm_base_translator1_c.variable_out = QDEP_TRANSLATIONS_QM
-	__qm_base_translator1_c.commands = $$QDEP_LRELEASE ${QMAKE_FILE_IN} -qm ${QMAKE_FILE_OUT} 
-	__qm_base_translator1_c.output = $$QDEP_GENERATED_QM_DIR/${QMAKE_FILE_BASE}.qm
-	__qm_base_translator1_c.CONFIG += no_link
-	__qm_base_translator1_c.depends += $$QDEP_LRELEASE_EXE
-	QMAKE_EXTRA_COMPILERS += __qm_base_translator1_c
-	
-	# compiler for qdep qm files
-	__qm_base_translator2_c.name = lrelease ${QMAKE_FILE_IN}
-	__qm_base_translator2_c.input = QDEP_TRANSLATIONS 
-	__qm_base_translator2_c.variable_out = QDEP_TRANSLATIONS_QM
-	__qm_base_translator2_c.commands = $$QDEP_LRELEASE ${QMAKE_FILE_IN} -qm ${QMAKE_FILE_OUT} 
-	__qm_base_translator2_c.output = $$QDEP_GENERATED_QM_DIR/${QMAKE_FILE_BASE}.qm
-	__qm_base_translator2_c.CONFIG += no_link
-	__qm_base_translator2_c.depends += $$QDEP_LRELEASE_EXE
-	QMAKE_EXTRA_COMPILERS += __qm_base_translator2_c
-
-	lrelease_target.depends += compiler___qm_base_translator1_c_make_all compiler___qm_base_translator2_c_make_all
-	
-	# install target
-	for(tsfile, $$list($$TRANSLATIONS $$QDEP_TRANSLATIONS)) {
-		tsBase = $$basename(tsfile)
-		qdep_ts_target.files += "$$QDEP_GENERATED_QM_DIR/$$replace(tsBase, \.ts, .qm)"
-	}
+	# add qdep translations to extra to allow lrelease processing
+	EXTRA_TRANSLATIONS += $$QDEP_TRANSLATIONS
 }
-
-# custom lrelease target to invoke the translation generation
-debug_and_release:!DebugBuild:!ReleaseBuild {
-	lrelease_target.depends =
-
-	lrelease_all.target = lrelease_all
-	lrelease_all.CONFIG += recursive
-	lrelease_all.recurse_target = lrelease
-	QMAKE_EXTRA_TARGETS += lrelease_all
-
-	CONFIG(debug, debug|release): lrelease_target.depends += debug-lrelease_all
-	CONFIG(release, debug|release): lrelease_target.depends += release-lrelease_all
-} else:ios:equals(TEMPLATE, app): lrelease_target.depends = first
-lrelease_target.target = lrelease
-QMAKE_EXTRA_TARGETS += lrelease_target
-
-# translation install target
-qdep_ts_target.CONFIG += no_check_exist
+# fix for broken lrelease make feature
+!isEmpty(LRELEASE_DIR): \\
+	!exists($$absolute_path($$LRELEASE_DIR, $$OUT_PWD)): \\
+	!mkpath($$absolute_path($$LRELEASE_DIR, $$OUT_PWD)): \\
+	warning("Failed to create lrelease directory: $$absolute_path($$LRELEASE_DIR, $$OUT_PWD)")
+qm_files.CONFIG += no_check_exist
 
 # Create qdep pri export, if modules should be exported
 qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
