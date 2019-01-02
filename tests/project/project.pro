@@ -7,6 +7,5 @@ SUBDIRS += \
     basic \
     external
 
-prepareRecursiveTarget(lrelease)
 prepareRecursiveTarget(run-tests)
-QMAKE_EXTRA_TARGETS += lrelease run-tests
+QMAKE_EXTRA_TARGETS += run-tests lrelease

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # $1 build path
 # $2 qmake path
-set -e
+set -ex
 
 SCRIPT_PATH="$(readlink -f "$(dirname "$0")")"
 BUILD_PATH="$1"
@@ -19,6 +19,7 @@ cd "$BUILD_PATH"
 "$QMAKE" "$SCRIPT_PATH/project/"
 make qmake_all
 make
+make lrelease
 
 make INSTALL_ROOT="$BUILD_PATH/install" install
 [ -e "$BUILD_PATH/install$($QMAKE -query QT_INSTALL_TRANSLATIONS)/single_de.qm" ]
