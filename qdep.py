@@ -600,10 +600,15 @@ static|staticlib {
 	EXTRA_TRANSLATIONS += $$QDEP_TRANSLATIONS
 }
 # fix for broken lrelease make feature
-!isEmpty(LRELEASE_DIR): \\
-	!exists($$absolute_path($$LRELEASE_DIR, $$OUT_PWD)): \\
-	!mkpath($$absolute_path($$LRELEASE_DIR, $$OUT_PWD)): \\
-	warning("Failed to create lrelease directory: $$absolute_path($$LRELEASE_DIR, $$OUT_PWD)")
+!isEmpty(LRELEASE_DIR) {
+	debug_and_release:CONFIG(release, debug|release): __lrelease_real_dir = $${LRELEASE_DIR}/release
+	else:debug_and_release:CONFIG(debug, debug|release): __lrelease_real_dir = $${LRELEASE_DIR}/debug
+	else: __lrelease_real_dir = $$QDEP_GENERATED_DIR
+	__lrelease_real_dir = $$absolute_path($$__lrelease_real_dir, $$OUT_PWD)
+	!exists($$__lrelease_real_dir): \\
+		!mkpath($$__lrelease_real_dir): \\
+		warning("Failed to create lrelease directory: $$__lrelease_real_dir")
+}
 qm_files.CONFIG += no_check_exist
 
 # Create qdep pri export, if modules should be exported

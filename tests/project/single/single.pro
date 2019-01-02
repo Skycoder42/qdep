@@ -14,15 +14,15 @@ QDEP_DEPENDS += $${REPO_BASE}@master/tests/packages/basic/package1/package1.pri
 
 TRANSLATIONS += \
     single_de.ts \
-    single_ja.ts
-
-DEFINES += "\"TS_DIR=\\\"$$absolute_path($$LRELEASE_DIR, $$OUT_PWD)\\\"\""
+	single_ja.ts
 
 force_ts|CONFIG(release, debug|release): DEFINES += WITH_TRANSLATIONS
 
 QM_FILES_INSTALL_PATH = $$[QT_INSTALL_TRANSLATIONS]
 
 !load(qdep):error("Failed to load qdep feature")
+
+DEFINES += "\"TS_DIR=\\\"$$__lrelease_real_dir\\\"\""
 
 include(../testrun.pri)
 
