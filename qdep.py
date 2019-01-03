@@ -495,7 +495,11 @@ defineTest(qdepCreateExportPri) {
 		} else: out_libdir = $$absolute_path($$DESTDIR, $$OUT_PWD)
 		
 		out_file_data += $$qdepOutQuote(LIBS, "-L$${out_libdir}/")
-		out_file_data += $$qdepOutQuote(LIBS, "-l$${TARGET}")
+		equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote(LIBS, "-l$${TARGET}")
+		else {
+			win32: bin_suffix = .exe
+			out_file_data += $$qdepOutQuote(LIBS, "-l:$${TARGET}$${bin_suffix}")
+		}
 		
 		static|staticlib {
 			out_file_data += $$qdepOutQuote(DEPENDPATH, $$_PRO_FILE_PWD_)
@@ -569,7 +573,7 @@ defineReplace(qdepLinkExpand) {
 
 # create special target for resource hooks in static libs
 # or if not, reference their hooks of static libs (as special compiler, only for non-static apps/libs)
-static|staticlib {
+static|staticlib:equals(TEMPLATE, lib) {
 	__qdep_hook_generator_c.name = qdep hookgen ${QMAKE_FILE_IN}
 	__qdep_hook_generator_c.input = _PRO_FILE_ RESOURCES 
 	__qdep_hook_generator_c.variable_out = HEADERS
