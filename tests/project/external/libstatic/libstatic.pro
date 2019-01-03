@@ -1,7 +1,11 @@
 TEMPLATE = lib
 CONFIG += static
 
-TARGET = libstatic
+TARGET = superstatic
+
+debug_and_release:CONFIG(release, debug|release): DESTDIR = libout/release
+else:debug_and_release:CONFIG(debug, debug|release):  DESTDIR = libout/debug
+else: DESTDIR = libout
 
 HEADERS += libstatic.h
 

@@ -9,7 +9,7 @@ QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package5/package5
 
 QDEP_HOOK_FNS += app_startup_hook
 
-QDEP_LINK_DEPENDS += ../libstatic/libstatic $$OUT_PWD/../libdynamic/libdynamic_export.pri
+QDEP_LINK_DEPENDS += ../libstatic/libstatic.pro $$OUT_PWD/../libdynamic
 #CONFIG += qdep_no_link
 
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test

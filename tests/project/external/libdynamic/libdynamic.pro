@@ -1,6 +1,6 @@
 TEMPLATE = lib
 
-TARGET = libdynamic
+TARGET = dynamic
 
 DEFINES += LIBDYNAMIC_BUILD
 

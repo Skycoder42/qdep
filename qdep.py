@@ -367,7 +367,10 @@ isEmpty(QDEP_LCONVERT) {
 	QDEP_LCONVERT += -sort-contexts 
 }
 
-isEmpty(QDEP_EXPORT_FILE): QDEP_EXPORT_FILE = $$QDEP_GENERATED_DIR/$$lower("$${TARGET}_export.pri")
+isEmpty(QDEP_EXPORT_FILE) {
+	__qdep_base_name = $$basename(_PRO_FILE_)
+	QDEP_EXPORT_FILE = $$QDEP_GENERATED_DIR/$$replace(__qdep_base_name, "\\\\.[^\\\\.]*$", "_export.pri")
+}
 
 isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "==="
 isEmpty(__QDEP_TUPLE_SEPERATOR): __QDEP_TUPLE_SEPERATOR = "---"
@@ -473,36 +476,37 @@ defineTest(qdepCreateExportPri) {
 	
 	# write startup hooks
 	static|staticlib {
-		out_file_data += "debug_and_release:CONFIG(release, debug|release): $$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/release/qdep_$${TARGET}_hooks.h)"
-		out_file_data += "else:debug_and_release:CONFIG(debug, debug|release): $$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/debug/qdep_$${TARGET}_hooks.h)"
-		out_file_data += "else: $$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/qdep_$${TARGET}_hooks.h)"
+		debug_and_release:CONFIG(release, debug|release): out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/release/qdep_$${TARGET}_hooks.h)"
+		else:debug_and_release:CONFIG(debug, debug|release): out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/debug/qdep_$${TARGET}_hooks.h)"
+		else: out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/qdep_$${TARGET}_hooks.h)"
 	}
 	
 	# write library linkage
 	!qdep_no_link {
 		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
 		
-		out_libdir = $$shadowed($$_PRO_FILE_PWD_)
-		debug_and_release {
-			out_file_data += "CONFIG(release, debug|release): $$qdepOutQuote(LIBS, "-L$${out_libdir}/release/")"
-			out_file_data += "else:CONFIG(debug, debug|release): $$qdepOutQuote(LIBS, "-L$${out_libdir}/debug/")"
-		} else: out_file_data += $$qdepOutQuote(LIBS, "-L$${out_libdir}/")
+		isEmpty(DESTDIR) {
+			out_libdir = $$OUT_PWD
+			debug_and_release:CONFIG(release, debug|release): out_libdir = $${out_libdir}/release
+			else:debug_and_release:CONFIG(debug, debug|release): out_libdir = $${out_libdir}/debug
+		} else: out_libdir = $$absolute_path($$DESTDIR, $$OUT_PWD)
+		
+		out_file_data += $$qdepOutQuote(LIBS, "-L$${out_libdir}/")
 		out_file_data += $$qdepOutQuote(LIBS, "-l$${TARGET}")
 		
 		static|staticlib {
 			out_file_data += $$qdepOutQuote(DEPENDPATH, $$_PRO_FILE_PWD_)
 			
-			win32-g++ {
-				out_file_data += "CONFIG(release, debug|release): $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/release/lib$${TARGET}.a")"
-				out_file_data += "else:CONFIG(debug, debug|release): $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/debug/lib$${TARGET}.a")"
-			} else:win32:!win32-g++ {
-				out_file_data += "CONFIG(release, debug|release): $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/release/$${TARGET}.lib")"
-				out_file_data += "else:CONFIG(debug, debug|release): $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/debug/$${TARGET}.lib")"
-			} else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
+			win32-g++: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
+			else:win32: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/$${TARGET}.lib")
+			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
 		}
 	}
 	
-	write_file($$first(ARGS), out_file_data):return(true)
+	out_path = $$1
+	debug_and_release:CONFIG(release, debug|release): out_path = $$out_path/release
+	debug_and_release:CONFIG(debug, debug|release): out_path = $$out_path/debug
+	write_file($$out_path, out_file_data):return(true)
 	else:return(false)
 }
 
@@ -510,8 +514,20 @@ defineTest(qdepCreateExportPri) {
 defineReplace(qdepLinkExpand) {
 	base_path = $$1
 	suffix = $$str_member($$base_path, -4, -1)
-	equals(suffix, ".pro"): base_path = "$$str_member(base_path, 0, -5)_export.pri"
-	else:!equals(suffix, ".pri"): base_path = "$${base_path}/$$dirname(base_path)_export.pri"
+	
+	!equals(suffix, ".pri") {
+		equals(suffix, ".pro") {
+			file_name = $$basename(base_path)
+			file_name = "$$str_member($$file_name, 0, -5)_export.pri"
+			base_path = $$dirname(base_path)
+		} else {
+			file_name = "$$basename(base_path)_export.pri"
+		}
+		debug_and_release:CONFIG(release, debug|release): base_path = $$base_path/release/$$file_name
+		else:debug_and_release:CONFIG(debug, debug|release):  base_path = $$base_path/debug/$$file_name
+		else: base_path = $$base_path/$$file_name
+	}
+
 	base_path = $$absolute_path($$base_path, $$_PRO_FILE_PWD_)
 	s_base_path = $$shadowed($$base_path)
 	!isEmpty(s_base_path):exists($$s_base_path):return($$s_base_path)
