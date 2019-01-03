@@ -367,9 +367,12 @@ isEmpty(QDEP_LCONVERT) {
 	QDEP_LCONVERT += -sort-contexts 
 }
 
-isEmpty(QDEP_EXPORT_FILE) {
+isEmpty(QDEP_EXPORT_PATH): QDEP_EXPORT_PATH = $$QDEP_GENERATED_DIR
+debug_and_release:CONFIG(release, debug|release): QDEP_EXPORT_PATH = $$QDEP_EXPORT_PATH/release
+debug_and_release:CONFIG(debug, debug|release): QDEP_EXPORT_PATH = $$QDEP_EXPORT_PATH/debug
+isEmpty(QDEP_EXPORT_NAME) {
 	__qdep_base_name = $$basename(_PRO_FILE_)
-	QDEP_EXPORT_FILE = $$QDEP_GENERATED_DIR/$$replace(__qdep_base_name, "\\\\.[^\\\\.]*$", "_export.pri")
+	QDEP_EXPORT_NAME = $$replace(__qdep_base_name, "\\\\.[^\\\\.]*$", "_export.pri")
 }
 
 isEmpty(__QDEP_PRIVATE_SEPERATOR): __QDEP_PRIVATE_SEPERATOR = "==="
@@ -503,10 +506,7 @@ defineTest(qdepCreateExportPri) {
 		}
 	}
 	
-	out_path = $$1
-	debug_and_release:CONFIG(release, debug|release): out_path = $$out_path/release
-	debug_and_release:CONFIG(debug, debug|release): out_path = $$out_path/debug
-	write_file($$out_path, out_file_data):return(true)
+	write_file($$1, out_file_data):return(true)
 	else:return(false)
 }
 
@@ -632,7 +632,7 @@ qm_files.CONFIG += no_check_exist
 
 # Create qdep pri export, if modules should be exported
 qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
-	!qdepCreateExportPri($$QDEP_EXPORT_FILE): \\
+	!qdepCreateExportPri($$QDEP_EXPORT_PATH/$$QDEP_EXPORT_NAME): \\
 	error("Failed to create export file $$QDEP_EXPORT_FILE")
 
 DEFINES += $$QDEP_DEFINES
