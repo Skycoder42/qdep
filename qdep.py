@@ -530,6 +530,7 @@ defineReplace(qdepLinkExpand) {
 
 	base_path = $$absolute_path($$base_path, $$_PRO_FILE_PWD_)
 	s_base_path = $$shadowed($$base_path)
+	message("qdepLinkExpand: $$base_path -> $$s_base_path")
 	!isEmpty(s_base_path):exists($$s_base_path):return($$s_base_path)
 	else:!isEmpty(base_path):exists($$base_path):return($$base_path)
 	else:return()
