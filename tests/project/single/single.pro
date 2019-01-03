@@ -22,7 +22,7 @@ QM_FILES_INSTALL_PATH = $$[QT_INSTALL_TRANSLATIONS]
 
 !load(qdep):error("Failed to load qdep feature")
 
-DEFINES += "\"TS_DIR=\\\"$$__lrelease_real_dir\\\"\""
+DEFINES += "\"TS_DIR=\\\"$$__qdep_lrelease_real_dir\\\"\""
 
 include(../testrun.pri)
 

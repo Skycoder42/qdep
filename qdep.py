@@ -572,6 +572,19 @@ static|staticlib {
 	QMAKE_EXTRA_COMPILERS += __qdep_hook_importer_c
 }
 
+# fix for broken lrelease make feature
+{
+	isEmpty(LRELEASE_DIR): LRELEASE_DIR = .qm
+	debug_and_release:CONFIG(release, debug|release): __qdep_lrelease_real_dir = $${LRELEASE_DIR}/release
+	else:debug_and_release:CONFIG(debug, debug|release): __qdep_lrelease_real_dir = $${LRELEASE_DIR}/debug
+	else: __qdep_lrelease_real_dir = $$LRELEASE_DIR
+	__qdep_lrelease_real_dir = $$absolute_path($$__qdep_lrelease_real_dir, $$OUT_PWD)
+	!exists($$__qdep_lrelease_real_dir): \\
+		!mkpath($$__qdep_lrelease_real_dir): \\
+		warning("Failed to create lrelease directory: $$__qdep_lrelease_real_dir")
+}
+qm_files.CONFIG += no_check_exist
+
 # Create special targets for translations
 !qdep_no_qm_combine {
 	# move translations into temporary var for the compiler to work
@@ -593,23 +606,12 @@ static|staticlib {
 	# copy from lrelease.prf - needed as TRANSLATIONS is now empty
 	for(translation, $$list($$__QDEP_ORIGINAL_TRANSLATIONS $$EXTRA_TRANSLATIONS)) {
 		translation = $$basename(translation)
-		QM_FILES += $$OUT_PWD/$$LRELEASE_DIR/$$replace(translation, \\\\..*$, .qm)
+		QM_FILES += $$__qdep_lrelease_real_dir/$$replace(translation, \\\\..*$, .qm)
 	}
 } else {
 	# add qdep translations to extra to allow lrelease processing
 	EXTRA_TRANSLATIONS += $$QDEP_TRANSLATIONS
 }
-# fix for broken lrelease make feature
-!isEmpty(LRELEASE_DIR) {
-	debug_and_release:CONFIG(release, debug|release): __lrelease_real_dir = $${LRELEASE_DIR}/release
-	else:debug_and_release:CONFIG(debug, debug|release): __lrelease_real_dir = $${LRELEASE_DIR}/debug
-	else: __lrelease_real_dir = $$QDEP_GENERATED_DIR
-	__lrelease_real_dir = $$absolute_path($$__lrelease_real_dir, $$OUT_PWD)
-	!exists($$__lrelease_real_dir): \\
-		!mkpath($$__lrelease_real_dir): \\
-		warning("Failed to create lrelease directory: $$__lrelease_real_dir")
-}
-qm_files.CONFIG += no_check_exist
 
 # Create qdep pri export, if modules should be exported
 qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
