@@ -12,4 +12,4 @@ QDEP_PROJECT_DEPENDS += Skycoder42/qdep@master/tests/packages/libs/project3/proj
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !load(qdep):error("Failed to load qdep feature")
 
-!package2_included: error("!package2_included")
+qdep_build:!package2_included: error("!package2_included")
