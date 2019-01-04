@@ -4,7 +4,7 @@ CONFIG -= app_bundle
 HEADERS += $$PWD/tests.h
 INCLUDEPATH += $$PWD
 
-!no_run_tests_target {
+!no_run_tests_target:!isEmpty(OUT_PWD) {
     win32:!ReleaseBuild:!DebugBuild {
         runtarget.target = run-tests
         runtarget.CONFIG = recursive
@@ -65,11 +65,14 @@ message("TARGET: $$TARGET")
 !isEmpty(__QDEP_REAL_DEPS_STACK):error("__QDEP_REAL_DEPS_STACK not empty: $$__QDEP_REAL_DEPS_STACK")
 message("__QDEP_INCLUDE_CACHE:")
 for(hash, __QDEP_INCLUDE_CACHE) {
-    message("    $${hash}.package: $$first($${hash}.package)")
-    message("    $${hash}.version: $$first($${hash}.version)")
-    message("    $${hash}.path: $$first($${hash}.path)")
-    message("    $${hash}.exports: $$first($${hash}.exports)")
-    message("    $${hash}.local: $$first($${hash}.local)")
+    message("    $${hash}.package: $$eval($${hash}.package)")
+    message("    $${hash}.version: $$eval($${hash}.version)")
+    message("    $${hash}.path: $$eval($${hash}.path)")
+    message("    $${hash}.exports: $$eval($${hash}.exports)")
+    message("    $${hash}.local: $$eval($${hash}.local)")
+    message("    $${hash}.target: $$eval($${hash}.target)")
+    message("    $${hash}.file: $$eval($${hash}.file)")
+    message("    $${hash}.depends: $$eval($${hash}.depends)")
 }
 message("QDEP_DEFINES: $$QDEP_DEFINES")
 message("DEFINES: $$DEFINES")
