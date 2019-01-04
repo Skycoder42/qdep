@@ -13,4 +13,4 @@ QDEP_EXPORTS += Skycoder42/qdep@master/tests/packages/basic/package1/package1.pr
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !load(qdep):error("Failed to load qdep feature")
 
-!package1_included: error("!package1_included")
+qdep_build:!package1_included: error("!package1_included")
