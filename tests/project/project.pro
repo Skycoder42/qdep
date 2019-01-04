@@ -5,7 +5,8 @@ CONFIG += ordered
 SUBDIRS += \
     single \
     basic \
-    external
+    external \
+    libs
 
 prepareRecursiveTarget(run-tests)
 QMAKE_EXTRA_TARGETS += run-tests lrelease
