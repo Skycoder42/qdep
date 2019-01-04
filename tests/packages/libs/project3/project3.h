@@ -7,4 +7,4 @@ void doStuff();
 
 }
 
-#endif PROJECT3_H
+#endif

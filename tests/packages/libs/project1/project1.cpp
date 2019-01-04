@@ -1,5 +1,5 @@
 #include "project1.h"
 
-Project1::doStuff()
+void Project1::doStuff()
 {
 }
