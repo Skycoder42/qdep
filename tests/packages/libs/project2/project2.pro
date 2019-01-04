@@ -13,24 +13,3 @@ CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !load(qdep):error("Failed to load qdep feature")
 
 qdep_build:!package1_included: error("!package1_included")
-
-# qdep stats
-message("TARGET: $$TARGET")
-!qdep_build:error("qdep was loaded, but qdep_build config is not set")
-!isEmpty(__QDEP_REAL_DEPS_STACK):error("__QDEP_REAL_DEPS_STACK not empty: $$__QDEP_REAL_DEPS_STACK")
-message("__QDEP_INCLUDE_CACHE:")
-for(hash, __QDEP_INCLUDE_CACHE) {
-    message("    $${hash}.package: $$eval($${hash}.package)")
-    message("    $${hash}.version: $$eval($${hash}.version)")
-    message("    $${hash}.path: $$eval($${hash}.path)")
-    message("    $${hash}.exports: $$eval($${hash}.exports)")
-    message("    $${hash}.local: $$eval($${hash}.local)")
-    message("    $${hash}.target: $$eval($${hash}.target)")
-    message("    $${hash}.file: $$eval($${hash}.file)")
-    message("    $${hash}.depends: $$eval($${hash}.depends)")
-}
-message("QDEP_DEFINES: $$QDEP_DEFINES")
-message("DEFINES: $$DEFINES")
-message("QDEP_INCLUDEPATH: $$QDEP_INCLUDEPATH")
-message("INCLUDEPATH: $$INCLUDEPATH")
-message("__QDEP_PRIVATE_VARS_EXPORT: $$__QDEP_PRIVATE_VARS_EXPORT")
