@@ -3,9 +3,9 @@ CONFIG += static
 
 TARGET = project3
 
-HEADERS += libproject3.h
+HEADERS += project3.h
 
-SOURCES += libproject3.cpp
+SOURCES += project3.cpp
 
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri
 QDEP_EXPORTS += Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri

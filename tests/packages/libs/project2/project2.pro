@@ -2,9 +2,9 @@ TEMPLATE = lib
 
 TARGET = project2
 
-HEADERS += libproject2.h
+HEADERS += project2.h
 
-SOURCES += libproject2.cpp
+SOURCES += project2.cpp
 
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/basic/package2/package2.pri
 QDEP_PROJECT_DEPENDS += Skycoder42/qdep@master/tests/packages/libs/project3/project3.pro
