@@ -66,7 +66,7 @@ def get_override_map():
 
 
 def pkg_hash(pkg_url, pkg_path):
-	return "__QDEP_PKG_" + hashlib.sha3_512((pkg_url + pkg_path).encode("UTF-8")).hexdigest()
+	return "__QDEP_PKG_" + hashlib.sha3_256((pkg_url + pkg_path).encode("UTF-8")).hexdigest()
 
 
 def package_resolve(package, pkg_version=None, project=False):
