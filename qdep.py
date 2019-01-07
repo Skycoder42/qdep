@@ -185,7 +185,10 @@ def lupdate(arguments):
 def dephash(arguments):
 	for package in arguments.input:
 		pkg_url, pkg_branch, pkg_path = package_resolve(package, project=arguments.project)
-		print(pkg_hash(pkg_url, pkg_path))
+		if arguments.pkgpath:
+			print(pkg_hash(pkg_url, pkg_path) + ";" + pkg_path)
+		else:
+			print(pkg_hash(pkg_url, pkg_path))
 	return 0
 
 
@@ -287,7 +290,7 @@ def prolink(arguments):
 	pro_target = path.join(link_target, arguments.pkgpath[1:])
 
 	# skip mode -> only print the path
-	if arguments.skip:
+	if arguments.link is None:
 		print(pro_target)
 		return 0
 
@@ -305,11 +308,11 @@ def prolink(arguments):
 	# then link the correct project again
 	try:
 		os.makedirs(path.dirname(link_target), exist_ok=True)
-		os.symlink(arguments.pkgbase, link_target, target_is_directory=True)
+		os.symlink(arguments.link, link_target, target_is_directory=True)
 	except OSError:
 		# symlink is not possible, copy instead
 		print("Project WARNING: Failed to symlink project dependecy. Performing deep copy instead", file=sys.stderr)
-		shutil.copytree(arguments.pkgbase, link_target, symlinks=True, ignore_dangling_symlinks=True)
+		shutil.copytree(arguments.link, link_target, symlinks=True, ignore_dangling_symlinks=True)
 
 	print(pro_target)
 	return 0
@@ -330,7 +333,8 @@ def main():
 	lupdate_parser.add_argument("largs", action="store", nargs="*", metavar="lupdate-argument", help="Additionals arguments to be passed to lupdate. MUST be proceeded by '--'!")
 
 	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
-	dephash_parser.add_argument("--project", dest="project", action="store_true", help="Interpret input as a project dependency, not a normal pri dependency")
+	dephash_parser.add_argument("--project", action="store_true", help="Interpret input as a project dependency, not a normal pri dependency.")
+	dephash_parser.add_argument("--pkgpath", action="store_true", help="Return the hash and the pro/pri subpath as tuple, seperated by a ';'.")
 	dephash_parser.add_argument("input", action="store", nargs="*", metavar="package", help="The packages to generate hashes for.")
 
 	pkgresolve_parser = sub_args.add_parser("pkgresolve", help="[INTERNAL] Download the given qdep package and extract relevant information from it.")
@@ -357,14 +361,13 @@ def main():
 	lconvert_parser.add_argument("--combine", action="store", nargs="*", help="The qdep ts files that should be combined into the real ones.")
 	lconvert_parser.add_argument("tsfile", action="store", help="The path to the ts file to combine with the qdep ts files.")
 	lconvert_parser.add_argument("outfile", action="store", help="The path to the ts file to be generated.")
-	lconvert_parser.add_argument("largs", action="store", nargs="+", metavar="lconvert-tool", help="Path to the lconvert tool as well as additional arguments to it")
+	lconvert_parser.add_argument("largs", action="store", nargs="+", metavar="lconvert-tool", help="Path to the lconvert tool as well as additional arguments to it.")
 
-	prolink_parser = sub_args.add_parser("prolink", help="[INTERNAL] Link a project dependency into a project.")
-	prolink_parser.add_argument("--skip", action="store_true", help="Do no actually perform the link operation, only return the name of the pro file that would be created.")
+	prolink_parser = sub_args.add_parser("prolink", help="[INTERNAL] Resolve the path a linked project dependency would be at.")
 	prolink_parser.add_argument("prodir", action="store", help="The directory of the pro file that includes the other one.")
 	prolink_parser.add_argument("pkghash", action="store", help="The hash identifier of the project to link.")
-	prolink_parser.add_argument("pkgbase", action="store", help="The path to the dependecy sources.")
 	prolink_parser.add_argument("pkgpath", action="store", help="The path to the pro file within the dependency.")
+	prolink_parser.add_argument("--link", action="store", help="Perform the link operation and create the symlink/dirtree, based on the given path to the dependency sources.")
 
 	res = parser.parse_args()
 	if res.operation == "prfgen":
@@ -550,12 +553,12 @@ defineTest(qdepCollectProjectDependencies) {
 			else: linked_version =			
 			qdep_ok = 
 			!equals($${dep_hash}.version, $$linked_version) {
-				$${dep_hash}.file = $$system($$QDEP_TOOL prolink $$system_quote($$_PRO_FILE_PWD_) $${dep_hash} $$system_quote($${dep_base}) $$system_quote($${dep_path}), lines, qdep_ok)
+				$${dep_hash}.file = $$system($$QDEP_TOOL prolink --link $$system_quote($${dep_base}) $$system_quote($$_PRO_FILE_PWD_) $${dep_hash} $$system_quote($${dep_path}), lines, qdep_ok)
 				!equals(qdep_ok, 0):return(false)
 				!write_file("$$_PRO_FILE_PWD_/.qdep/$${dep_hash}/.version", $${dep_hash}.version): \\
 					error("Failed to cache project dependency version for $$first($${dep_hash}.package)")
 			} else {
-				$${dep_hash}.file = $$system($$QDEP_TOOL prolink --skip $$system_quote($$_PRO_FILE_PWD_) $${dep_hash} $$system_quote($${dep_base}) $$system_quote($${dep_path}), lines, qdep_ok)
+				$${dep_hash}.file = $$system($$QDEP_TOOL prolink $$system_quote($$_PRO_FILE_PWD_) $${dep_hash} $$system_quote($${dep_path}), lines, qdep_ok)
 				!equals(qdep_ok, 0):return(false)
 			}
 			export($${dep_hash}.file)
@@ -596,6 +599,27 @@ defineTest(qdepResolveSubdirDepends) {
 		}
 	}
 	return(true)
+}
+
+# pass the root dir and dependencies and create QDEP_LINK_DEPENDS values from it
+defineReplace(qdepResolveProjectLinkDeps) {
+	qdep_dependencies = 
+	for(arg, 2): qdep_dependencies += $$system_quote($$arg)
+	qdep_ok = 
+	dep_tuples = $$system($$QDEP_TOOL dephash --project --pkgpath $$qdep_dependencies, lines, qdep_ok)
+	!equals(qdep_ok, 0):return()
+	
+	link_paths = 
+	for(qdep_tuple, dep_tuples) {
+		tpl_args = $$split(qdep_tuple, ";")
+		dep_hash = $$take_first(tpl_args)
+		dep_path = $$join(tpl_args, ";")
+		qdep_ok = 
+		link_paths += $$system($$QDEP_TOOL prolink $$system_quote($$absolute_path($$1, $$_PRO_FILE_PWD_)) $${dep_hash} $$system_quote($${dep_path}), lines, qdep_ok)
+		!equals(qdep_ok, 0):return()
+	}
+	
+	return($$link_paths)
 }
 
 # Write a quoted value for the given variable name as a single value
@@ -686,7 +710,13 @@ defineReplace(qdepLinkExpand) {
 	else:return()
 }
 
-# First collect all indirect dependencies
+# First transform project link depends to normal link depends
+!isEmpty(QDEP_PROJECT_ROOT): \\
+	!isEmpty(QDEP_PROJECT_LINK_DEPENDS): \\
+	QDEP_LINK_DEPENDS = $$qdepResolveProjectLinkDeps($$QDEP_PROJECT_ROOT, $$QDEP_PROJECT_LINK_DEPENDS) $$QDEP_LINK_DEPENDS  # always prepend project link depends
+message("*** $$QDEP_LINK_DEPENDS")
+
+# Next collect all indirect dependencies
 !isEmpty(QDEP_LINK_DEPENDS): \\
 	for(link_dep, QDEP_LINK_DEPENDS): \\
 	!include($$qdepLinkExpand($$link_dep)): \\
@@ -789,7 +819,7 @@ qm_files.CONFIG += no_check_exist
 }
 
 # Create qdep pri export, if modules should be exported
-qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
+equals(TEMPLATE, lib):!qdep_no_link|qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
 	!qdepCreateExportPri($$QDEP_EXPORT_PATH/$$QDEP_EXPORT_NAME): \\
 	error("Failed to create export file $$QDEP_EXPORT_FILE")
 
