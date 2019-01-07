@@ -1,4 +1,5 @@
 CONFIG += package1_included
+DEFINES += PACKAGE1_DEFINED
 
 HEADERS += \
     $$PWD/simple.h

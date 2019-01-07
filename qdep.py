@@ -710,11 +710,41 @@ defineReplace(qdepLinkExpand) {
 	else:return()
 }
 
+# find the SUBDIRS project build directory that this qdep project was linked from
+defineReplace(qdepResolveLinkRoot) {
+	path_segments = $$split(1, "/")
+	path_count = $$size(path_segments)
+	c_path = $$1
+	check_next = 0
+	for(index, 0..$$path_count) {
+		message("+++ $$index $$c_path $$check_next")
+		equals(check_next, 1): \\
+			exists("$$c_path/Makefile"): \\
+			return($$c_path)
+		
+		c_name = $$basename(c_path)
+		equals(c_name, ".qdep"): check_next = 1
+		else: check_next = 0
+		c_path = $$dirname(c_path)
+		!exists($$c_path):return()
+	}
+	return()
+}
+
 # First transform project link depends to normal link depends
 !isEmpty(QDEP_PROJECT_ROOT): \\
 	!isEmpty(QDEP_PROJECT_LINK_DEPENDS): \\
 	QDEP_LINK_DEPENDS = $$qdepResolveProjectLinkDeps($$QDEP_PROJECT_ROOT, $$QDEP_PROJECT_LINK_DEPENDS) $$QDEP_LINK_DEPENDS  # always prepend project link depends
-message("*** $$QDEP_LINK_DEPENDS")
+	
+# Second transform project depends to normal link depends
+# This will only work if the project is imported as qdep project dependency
+!isEmpty(QDEP_PROJECT_DEPENDS) {
+	__qdep_project_link_root = $$qdepResolveLinkRoot($$OUT_PWD)
+	isEmpty(__qdep_project_link_root): warning("Failed to find including subdirs project - only use QDEP_PROJECT_DEPENDS in qdep project depenencies")
+	else: QDEP_LINK_DEPENDS = $$qdepResolveProjectLinkDeps($$__qdep_project_link_root, $$QDEP_PROJECT_DEPENDS) $$QDEP_LINK_DEPENDS  # always prepend project link depends
+}
+
+message("~~~ $$QDEP_LINK_DEPENDS")
 
 # Next collect all indirect dependencies
 !isEmpty(QDEP_LINK_DEPENDS): \\
@@ -748,8 +778,8 @@ message("*** $$QDEP_LINK_DEPENDS")
 }
 
 # Collect all project dependencies
-equals(TEMPLATE, subdirs):!isEmpty(QDEP_PROJECT_DEPENDS) {
-	!qdepCollectProjectDependencies($$QDEP_PROJECT_DEPENDS): \\
+equals(TEMPLATE, subdirs):!isEmpty(QDEP_PROJECT_SUBDIRS) {
+	!qdepCollectProjectDependencies($$QDEP_PROJECT_SUBDIRS): \\
 		error("Failed to collect all project dependencies")
 	!qdepResolveSubdirDepends($$SUBDIRS): \\
 		error("Failed to link all project dependencies")
@@ -819,7 +849,7 @@ qm_files.CONFIG += no_check_exist
 }
 
 # Create qdep pri export, if modules should be exported
-equals(TEMPLATE, lib):!qdep_no_link|qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
+equals(TEMPLATE, lib):!qdep_no_link|qdep_link_export|qdep_export_all|!isEmpty(QDEP_EXPORTS): \\
 	!qdepCreateExportPri($$QDEP_EXPORT_PATH/$$QDEP_EXPORT_NAME): \\
 	error("Failed to create export file $$QDEP_EXPORT_FILE")
 

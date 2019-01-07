@@ -1,7 +1,7 @@
 TEMPLATE = subdirs
 
-QDEP_PROJECT_DEPENDS += Skycoder42/qdep@master/tests/packages/libs/project1/project1.pro
-QDEP_PROJECT_DEPENDS += Skycoder42/qdep@master/tests/packages/libs/project2/project2.pro
+QDEP_PROJECT_SUBDIRS += Skycoder42/qdep@master/tests/packages/libs/project1/project1.pro
+QDEP_PROJECT_SUBDIRS += Skycoder42/qdep@master/tests/packages/libs/project2/project2.pro
 
 SUBDIRS += app
 
