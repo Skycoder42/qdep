@@ -23,6 +23,8 @@ QDEP_INCLUDEPATH += $$PWD/extra
 
 QDEP_EXPORTS += Skycoder42/qdep@master/tests/packages/external/package2/package2.pri
 
+CONFIG += qdep_link_private
+
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !load(qdep):error("Failed to load qdep feature")
 

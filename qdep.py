@@ -657,6 +657,9 @@ defineTest(qdepCreateExportPri) {
 	
 	# write library linkage
 	!qdep_no_link {
+		qdep_link_private: lib_var_name = LIBS_PRIVATE
+		else: lib_var_name = LIBS
+	
 		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
 		
 		isEmpty(DESTDIR) {
@@ -665,11 +668,11 @@ defineTest(qdepCreateExportPri) {
 			else:debug_and_release:CONFIG(debug, debug|release): out_libdir = $${out_libdir}/debug
 		} else: out_libdir = $$absolute_path($$DESTDIR, $$OUT_PWD)
 		
-		out_file_data += $$qdepOutQuote(LIBS, "-L$${out_libdir}/")
-		equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote(LIBS, "-l$${TARGET}")
+		out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/")
+		equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}")
 		else {
 			win32: bin_suffix = .exe
-			out_file_data += $$qdepOutQuote(LIBS, "-l:$${TARGET}$${bin_suffix}")
+			out_file_data += $$qdepOutQuote($$lib_var_name, "-l:$${TARGET}$${bin_suffix}")
 		}
 		
 		static|staticlib {
@@ -678,6 +681,10 @@ defineTest(qdepCreateExportPri) {
 			win32-g++: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
 			else:win32: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/$${TARGET}.lib")
 			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
+			
+			# copy on all linked libraries needed by this one
+			out_file_data += $$qdepOutQuote(LIBS, $$LIBS)
+			out_file_data += $$qdepOutQuote(LIBS_PRIVATE, $$LIBS_PRIVATE)
 		}
 	}
 	
