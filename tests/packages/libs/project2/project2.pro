@@ -16,3 +16,5 @@ CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 
 qdep_build:package1_included: error("package1_included")
 qdeb_build:contains(DEFINES, PACKAGE1_DEFINED): error("!PACKAGE1_DEFINED")
+
+QMAKE_EXTRA_TARGETS += run-tests
