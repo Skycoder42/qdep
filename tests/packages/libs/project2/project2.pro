@@ -6,6 +6,8 @@ HEADERS += project2.h
 
 SOURCES += project2.cpp
 
+DEFINES += PROJECT2_BUILD
+
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri  # provided via project3
 QDEP_PROJECT_DEPENDS += Skycoder42/qdep@master/tests/packages/libs/project3/project3.pro
 

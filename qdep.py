@@ -717,7 +717,6 @@ defineReplace(qdepResolveLinkRoot) {
 	c_path = $$1
 	check_next = 0
 	for(index, 0..$$path_count) {
-		message("+++ $$index $$c_path $$check_next")
 		equals(check_next, 1): \\
 			exists("$$c_path/Makefile"): \\
 			return($$c_path)
@@ -743,8 +742,6 @@ defineReplace(qdepResolveLinkRoot) {
 	isEmpty(__qdep_project_link_root): warning("Failed to find including subdirs project - only use QDEP_PROJECT_DEPENDS in qdep project depenencies")
 	else: QDEP_LINK_DEPENDS = $$qdepResolveProjectLinkDeps($$__qdep_project_link_root, $$QDEP_PROJECT_DEPENDS) $$QDEP_LINK_DEPENDS  # always prepend project link depends
 }
-
-message("~~~ $$QDEP_LINK_DEPENDS")
 
 # Next collect all indirect dependencies
 !isEmpty(QDEP_LINK_DEPENDS): \\
