@@ -14,9 +14,11 @@ INCLUDEPATH += $$PWD
         oneshell.target = .ONESHELL
         QMAKE_EXTRA_TARGETS += oneshell
 
-        LIB_DIRS = $$shell_path($$shadowed($$dirname(_QMAKE_CONF_))/external/libdynamic)
-        CONFIG(debug, debug|release): LIB_DIRS += $$shell_path($$shadowed($$dirname(_QMAKE_CONF_))/external/libdynamic/debug)
-        CONFIG(release, debug|release): LIB_DIRS += $$shell_path($$shadowed($$dirname(_QMAKE_CONF_))/external/libdynamic/release)
+        LIB_DIRS =
+        prefix = "-L"
+        for(lib_arg, LIBS): \
+            equals(prefix, $$str_member($$lib_arg, 0, 1)): \
+            LIB_DIRS += $$str_member($$lib_arg, 2, -1)
 
         win32:!win32-g++ {
             CONFIG(debug, debug|release): outdir_helper = debug

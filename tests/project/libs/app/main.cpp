@@ -7,5 +7,5 @@ int main(int argc, char **argv)
     QCoreApplication app{argc, argv};
     Project2::doStuff();
 
-    return 1;
+    return 0;
 }
