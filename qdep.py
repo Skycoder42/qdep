@@ -583,6 +583,22 @@ defineTest(qdepCollectProjectDependencies) {
 	return(true)
 }
 
+# resolve qdep_depends of subdir dependencies to the actual hashes
+defineTest(qdepResolveSubdirDepends) {
+	for(subproj, 1) {
+		!isEmpty($${subproj}.qdep_depends) {
+			qdep_dependencies = 
+			for(arg, $${subproj}.qdep_depends): qdep_dependencies += $$system_quote($$arg)
+			qdep_ok = 
+			$${subproj}.depends += $$system($$QDEP_TOOL dephash --project $$qdep_dependencies, lines, qdep_ok)
+			!equals(qdep_ok, 0):return(false)
+			export($${subproj}.depends)
+		}
+	}
+	return(true)
+}
+
+# Write a quoted value for the given variable name as a single value
 defineReplace(qdepOutQuote) {
 	result = 
 	var_name = $$1
@@ -702,10 +718,12 @@ defineReplace(qdepLinkExpand) {
 }
 
 # Collect all project dependencies
-equals(TEMPLATE, subdirs): \\
-	!isEmpty(QDEP_PROJECT_DEPENDS): \\
+equals(TEMPLATE, subdirs):!isEmpty(QDEP_PROJECT_DEPENDS) {
 	!qdepCollectProjectDependencies($$QDEP_PROJECT_DEPENDS): \\
-	error("Failed to collect all project dependencies")
+		error("Failed to collect all project dependencies")
+	!qdepResolveSubdirDepends($$SUBDIRS): \\
+		error("Failed to link all project dependencies")
+}
 
 # create special target for resource hooks in static libs
 # or if not, reference their hooks of static libs (as special compiler, only for non-static apps/libs)
