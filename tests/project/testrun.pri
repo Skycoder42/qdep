@@ -15,11 +15,13 @@ INCLUDEPATH += $$PWD
         QMAKE_EXTRA_TARGETS += oneshell
 
         LIB_DIRS = $$OUT_PWD
+        LIB_DIRS_SHELL = $$shell_path($$OUT_PWD)
         prefix = "-L"
-        for(lib_arg, LIBS): \
-            equals(prefix, $$str_member($$lib_arg, 0, 1)): \
-            LIB_DIRS += $$str_member($$lib_arg, 2, -1)
-            LIB_DIRS_SHELL += $$shell_path($$str_member($$lib_arg, 2, -1))
+        for(lib_arg, LIBS):equals(prefix, $$str_member($$lib_arg, 0, 1)) {
+	        lib_arg = $$str_member($$lib_arg, 2, -1)
+            LIB_DIRS += $$lib_arg
+            LIB_DIRS_SHELL += $$shell_path($$lib_arg)
+        }
         message("Detected library paths as: $$LIB_DIRS")
         message("Detected shell library paths as: $$LIB_DIRS_SHELL")
 
