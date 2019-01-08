@@ -28,6 +28,7 @@ except ImportError:
 		else:
 			return path.join(os.getenv('XDG_CACHE_HOME', path.expanduser('~/.cache')), "qdep")
 
+# import lockfile with basic fallback
 try:
 	from lockfile import LockFile as FileLocker
 except ImportError:
@@ -43,6 +44,16 @@ except ImportError:
 
 		def release(self):
 			pass
+
+# import argcomplete with basic fallback
+try:
+	import argcomplete
+
+	def arg_compl(parser):
+		argcomplete.autocomplete(parser)
+except ImportError:
+	def arg_compl(parser):
+		pass
 
 
 def get_cache_dir(pkg_url, pkg_branch):
@@ -401,7 +412,9 @@ def main():
 	prolink_parser.add_argument("pkgpath", action="store", help="The path to the pro file within the dependency.")
 	prolink_parser.add_argument("--link", action="store", help="Perform the link operation and create the symlink/dirtree, based on the given path to the dependency sources.")
 
+	arg_compl(parser)
 	res = parser.parse_args()
+
 	if res.operation == "prfgen":
 		result = prfgen(res)
 	elif res.operation == "lupdate":
