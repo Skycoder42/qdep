@@ -113,9 +113,20 @@ def package_resolve(package, pkg_version=None, project=False):
 	return pkg_url, pkg_branch, pkg_path
 
 
-def get_all_tags(pkg_url):
-	ls_res = subprocess.run(["git", "ls-remote", "--tags", "--exit-code", pkg_url], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
-	ref_pattern = re.compile(r'[a-fA-F0-9]+\s+refs\/tags\/([^\s]+)')
+def get_all_tags(pkg_url, branches=False, tags=True, allow_empty=False):
+	ls_args = ["git", "ls-remote", "--refs"]
+	if not branches and tags:
+		ls_args.append("--tags")
+	elif not tags and branches:
+		ls_args.append("--heads")
+	if not allow_empty:
+		ls_args.append("--exit-code")
+	elif not tags and not branches:
+		return []  # Nothing to check for
+	ls_args.append(pkg_url)
+
+	ls_res = subprocess.run(ls_args, check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+	ref_pattern = re.compile(r'[a-fA-F0-9]+\s+refs\/(?:tags|heads)\/([^\s]+)')
 	tags = []
 	for match in re.finditer(ref_pattern, ls_res.stdout):
 		tags.append(match.group(1))
@@ -219,6 +230,47 @@ def clear(arguments):
 	else:
 		rm_size = 0
 	print("Removed {} bytes".format(rm_size))
+	return 0
+
+
+def versions(arguments):
+	package_url, _v, _p = package_resolve(arguments.package)
+
+	if arguments.tags:
+		pkg_tags = get_all_tags(package_url, tags=True, branches=False, allow_empty=True)
+		if arguments.limit is not None:
+			pkg_tags = pkg_tags[-arguments.limit:]
+	else:
+		pkg_tags = []
+
+	if arguments.branches:
+		pkg_branches = get_all_tags(package_url, tags=False, branches=True, allow_empty=True)
+		if arguments.limit is not None:
+			pkg_branches = pkg_branches[-arguments.limit:]
+	else:
+		pkg_branches = []
+
+	if arguments.short:
+		print(" ".join(pkg_branches + pkg_tags))
+	else:
+		if arguments.branches:
+			print("Branches:")
+			if len(pkg_branches) > 0:
+				for branch in pkg_branches:
+					print("  " + branch)
+			else:
+				print(" -- No branches found --")
+
+		if arguments.tags:
+			if arguments.branches:
+				print("")
+
+			print("Tags:")
+			if len(pkg_tags) > 0:
+				for tag in pkg_tags:
+					print("  " + tag)
+			else:
+				print(" -- No tags found --")
 	return 0
 
 
@@ -375,6 +427,13 @@ def main():
 	clear_parser = sub_args.add_parser("clear", help="Remove all sources from the users global cache.")
 	clear_parser.add_argument("-y", "--yes", dest="yes", action="store_true", help="Immediatly remove the caches, without asking for confirmation first.")
 
+	versions_parser = sub_args.add_parser("versions", help="List all known versions/tags of the given package")
+	versions_parser.add_argument("-b", "--branches", dest="branches", action="store_true", help="Include branches into the output.")
+	versions_parser.add_argument("--no-tags", dest="tags", action="store_false", help="Exclude tags from the output.")
+	versions_parser.add_argument("-s", "--short", dest="short", action="store_true", help="Print output as a single, uncommented line")
+	versions_parser.add_argument("--limit", action="store", type=int, help="Limit the returned lists to the LIMIT newest entries per type.")
+	versions_parser.add_argument("package", help="The package to list the versions for. Specify without a version of pro/pri file path!")
+
 	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
 	dephash_parser.add_argument("--project", action="store_true", help="Interpret input as a project dependency, not a normal pri dependency.")
 	dephash_parser.add_argument("--pkgpath", action="store_true", help="Return the hash and the pro/pri subpath as tuple, seperated by a ';'.")
@@ -421,6 +480,8 @@ def main():
 		result = lupdate(res)
 	elif res.operation == "clear":
 		result = clear(res)
+	elif res.operation == "versions":
+		result = versions(res)
 	elif res.operation == "dephash":
 		result = dephash(res)
 	elif res.operation == "pkgresolve":
