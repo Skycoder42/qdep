@@ -497,8 +497,8 @@ defineTest(qdepCollectDependencies) {
 			export(QDEP_EXPORTED_DEFINES)
 			export($${dep_hash}.exports)
 		} else: \\
-			!equals(dep_version, $$first($${dep_hash}.version)): \\
-			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${dep_hash}.package)\\" is used, and version \\"$$dep_version\\" was detected.")
+			!equals($${dep_hash}.package, $$dep_pkg): \\
+			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${dep_hash}.package)\\" is used, and package \\"$$dep_pkg\\" was detected.")
 	}
 	
 	return(true)
@@ -579,8 +579,8 @@ defineTest(qdepCollectProjectDependencies) {
 			# calls this method recursively for all dependencies
 			!qdepCollectProjectDependencies($$sub_deps):return(false)	
 		} else: \\
-			!equals(dep_version, $$first($${dep_hash}.version)): \\
-			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${dep_hash}.package)\\" is used, and version \\"$$dep_version\\" was detected.")
+			!equals($${dep_hash}.package, $$dep_pkg): \\
+			warning("Detected includes of multiple different versions of the same dependency. Package \\"$$first($${dep_hash}.package)\\" is used, and package \\"$$dep_pkg\\" was detected.")
 	}
 	
 	return(true)
