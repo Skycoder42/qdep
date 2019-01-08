@@ -182,6 +182,35 @@ def lupdate(arguments):
 	return 0
 
 
+def clear(arguments):
+	def folder_size(path):
+		total = 0
+		for entry in os.scandir(path):
+			if entry.is_file():
+				total += entry.stat().st_size
+			elif entry.is_dir():
+				total += folder_size(entry.path)
+		return total
+
+	if not arguments.yes:
+		print("All caches sources will be removed and have to be downloaded again. Make sure no other qdep instance is currently running!")
+		ok = input("Do you really want ro remove all cached sources? [y/N]").lower()
+		if len(ok) == 0:
+			return 0
+		elif ok != "y" and ok != "yes":
+			return 0
+
+	cache_dir = os.getenv("QDEP_CACHE_DIR", get_cache_dir_default())
+	cache_dir = path.join(cache_dir, "src")
+	if path.exists(cache_dir):
+		rm_size = folder_size(cache_dir)
+		shutil.rmtree(cache_dir)
+	else:
+		rm_size = 0
+	print("Removed {} bytes".format(rm_size))
+	return 0
+
+
 def dephash(arguments):
 	for package in arguments.input:
 		pkg_url, pkg_branch, pkg_path = package_resolve(package, project=arguments.project)
@@ -327,10 +356,13 @@ def main():
 	prfgen_parser = sub_args.add_parser("prfgen", help="Generate a qmake project feature (prf) for the given qmake.")
 	prfgen_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for.")
 
-	lupdate_parser = sub_args.add_parser("lupdate", help="...")
+	lupdate_parser = sub_args.add_parser("lupdate", help="Run lupdate for the QDEP_TRANSLATION variable in a given pri file.")
 	lupdate_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to find the corresponding lupdate for.")
 	lupdate_parser.add_argument("--pri-file", dest="pri_path", action="store", help="The path to the pri-file that contains a QDEP_TRANSLATIONS variable, to generate translations for.")
 	lupdate_parser.add_argument("largs", action="store", nargs="*", metavar="lupdate-argument", help="Additionals arguments to be passed to lupdate. MUST be proceeded by '--'!")
+
+	clear_parser = sub_args.add_parser("clear", help="Remove all sources from the users global cache.")
+	clear_parser.add_argument("-y", "--yes", dest="yes", action="store_true", help="Immediatly remove the caches, without asking for confirmation first.")
 
 	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
 	dephash_parser.add_argument("--project", action="store_true", help="Interpret input as a project dependency, not a normal pri dependency.")
@@ -374,6 +406,8 @@ def main():
 		result = prfgen(res)
 	elif res.operation == "lupdate":
 		result = lupdate(res)
+	elif res.operation == "clear":
+		result = clear(res)
 	elif res.operation == "dephash":
 		result = dephash(res)
 	elif res.operation == "pkgresolve":
@@ -387,7 +421,8 @@ def main():
 	elif res.operation == "prolink":
 		result = prolink(res)
 	else:
-		result = -1
+		parser.print_help()
+		result = 1
 	sys.exit(result)
 
 
