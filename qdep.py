@@ -196,6 +196,13 @@ def prfgen(arguments):
 	return 0
 
 
+def init(arguments):
+	with open(arguments.profile, "a") as pro_file:
+		pro_file.write("\nQDEP_DEPENDS = \n\n")
+		pro_file.write("!load(qdep):error(\"Failed to load qdep feature! Run 'qdep.py prfgen --qmake $$QMAKE_QMAKE' to create it.\")\n")
+	return 0
+
+
 def lupdate(arguments):
 	qmake_res = subprocess.run([arguments.qmake, "-query", "QT_HOST_BINS"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
 	lupdate_path = path.join(str(qmake_res.stdout).strip(), "lupdate")
@@ -464,6 +471,9 @@ def main():
 	prfgen_parser = sub_args.add_parser("prfgen", help="Generate a qmake project feature (prf) for the given qmake.")
 	prfgen_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for.")
 
+	init_parser = sub_args.add_parser("init", help="Initialize a pro file to use qdep by adding the required lines.")
+	init_parser.add_argument("profile", help="The path to the pro file to add the qdep code to.")
+
 	lupdate_parser = sub_args.add_parser("lupdate", help="Run lupdate for the QDEP_TRANSLATION variable in a given pri file.")
 	lupdate_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to find the corresponding lupdate for.")
 	lupdate_parser.add_argument("--pri-file", dest="pri_path", action="store", help="The path to the pri-file that contains a QDEP_TRANSLATIONS variable, to generate translations for.")
@@ -527,6 +537,8 @@ def main():
 
 	if res.operation == "prfgen":
 		result = prfgen(res)
+	elif res.operation == "init":
+		result = init(res)
 	elif res.operation == "lupdate":
 		result = lupdate(res)
 	elif res.operation == "clear":
