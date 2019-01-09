@@ -58,7 +58,7 @@ except ImportError:
 
 def get_cache_dir(pkg_url, pkg_branch):
 	cache_dir = os.getenv("QDEP_CACHE_DIR", get_cache_dir_default())
-	cache_dir = path.join(cache_dir, "src", hashlib.sha3_256(pkg_url.encode("UTF-8")).hexdigest(), pkg_branch)
+	cache_dir = path.join(cache_dir, hashlib.sha3_256(pkg_url.encode("UTF-8")).hexdigest(), pkg_branch)
 	os.makedirs(cache_dir, exist_ok=True)
 	return cache_dir
 
@@ -180,6 +180,31 @@ def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
 		locker.release()
 
 	return cache_dir, pkg_branch
+
+
+def eval_pro_file(pro_file, qmake, make, full_eval=False):
+	packages = []
+
+	with tempfile.TemporaryDirectory() as tmp_dir:
+		if full_eval:
+			print("Running {} on {}...".format(qmake, pro_file))
+			subprocess.run([qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+			print("Running {} qmake_all...".format(make))
+			subprocess.run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+			print("Done! qmake finished successfully, all qdep sources have been downloaded.")
+		else:
+			print("Evaluating pro file {}...".format(pro_file))
+			dump_name = path.join(tmp_dir, "qdep_dummy.pro")
+			with open(dump_name, "w") as dump_file:
+				dump_file.write("QDEP_DEPENDS = $$fromfile($$quote({}), QDEP_DEPENDS)\n".format(pro_file))
+				dump_file.write("!write_file($$PWD/qdep_depends.txt, QDEP_DEPENDS):error(\"write error\")\n")
+			subprocess.run([qmake, dump_name], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+			with open(path.join(tmp_dir, "qdep_depends.txt"), "r") as dep_file:
+				for line in dep_file.readlines():
+					packages.append(line.strip())
+			print("Done! Extracted {} dependencies".format(len(packages)))
+
+	return packages
 
 
 def prfgen(arguments):
@@ -322,6 +347,41 @@ def query(arguments):
 				"package": arguments.package
 			})
 			return versions(t_args)
+
+	return 0
+
+
+def get(arguments):
+	print(arguments)
+
+	if arguments.dir is not None:
+		os.environ["QDEP_CACHE_DIR"] = arguments.dir
+
+	# eval the pro files if needed
+	if arguments.eval:
+		# special case: since we only download sources, a simple qmake run is enough, no actual "evaluation" needed
+		for pro_file in arguments.args:
+			with tempfile.TemporaryDirectory() as tmp_dir:
+				print("Running {} on {}...".format(arguments.qmake, pro_file))
+				subprocess.run([arguments.qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+				print("Running {} qmake_all...".format(arguments.make))
+				subprocess.run([arguments.make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+				print("Done! qmake finished successfully, all qdep sources for the project tree have been downloaded.")
+		return 0
+	elif arguments.extract:
+		packages = []
+		for pro_file in arguments.args:
+			packages = packages + eval_pro_file(pro_file, arguments.qmake, arguments.make, full_eval=False)
+	else:
+		packages = arguments.args
+
+	# download the actual sources
+	print("Downloading {} packages total".format(len(packages)))
+	for package in packages:
+		print("Downloading sources for {}...".format(package))
+		pkg_url, pkg_version, _p = package_resolve(package)
+		get_sources(pkg_url, pkg_version)
+		print("Done!")
 
 	return 0
 
@@ -495,6 +555,14 @@ def main():
 	query_parser.add_argument("--versions", action="store_true", help="Also query and display all available tags and branches. See 'qdep.py versions' for alternative formats.")
 	query_parser.add_argument("package", help="The package to query information for.")
 
+	get_parser = sub_args.add_parser("get", help="Download the sources of one ore more packages into the source cache.")
+	get_parser.add_argument("--extract", action="store_true", help="Run in pro-file mode. Arguments are interpreted as pro files and are scanned for dependencies")
+	get_parser.add_argument("--eval", action="store_true", help="Fully evaluate all pro files by running qmake on them. Implies '--extract' ")
+	get_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to use for evaluation if '--eval' was specified.")
+	get_parser.add_argument("--make", action="store", default="make", help="The path to a make executable to use for evaluation if '--eval' was specified.")
+	get_parser.add_argument("-d", "--dir", "--cache-dir", dest="dir", action="store", help="Specify the directory where to download the sources to. Shorthand for using the QDEP_CACHE_DIR environment variable.")
+	get_parser.add_argument("args", nargs="+", help="The packages (or pro files if using '--extract') to download the sources for.")
+
 	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
 	dephash_parser.add_argument("--project", action="store_true", help="Interpret input as a project dependency, not a normal pri dependency.")
 	dephash_parser.add_argument("--pkgpath", action="store_true", help="Return the hash and the pro/pri subpath as tuple, seperated by a ';'.")
@@ -547,6 +615,8 @@ def main():
 		result = versions(res)
 	elif res.operation == "query":
 		result = query(res)
+	elif res.operation == "get":
+		result = get(res)
 	elif res.operation == "dephash":
 		result = dephash(res)
 	elif res.operation == "pkgresolve":
