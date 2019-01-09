@@ -133,8 +133,12 @@ def get_all_tags(pkg_url, branches=False, tags=True, allow_empty=False):
 	return tags
 
 
-def get_latest_tag(pkg_url):
-	return get_all_tags(pkg_url)[-1]
+def get_latest_tag(pkg_url, allow_empty=False):
+	all_tags = get_all_tags(pkg_url, allow_empty=allow_empty)
+	if len(all_tags) > 0:
+		return all_tags[-1]
+	else:
+		return None
 
 
 def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
@@ -271,6 +275,47 @@ def versions(arguments):
 					print("  " + tag)
 			else:
 				print(" -- No tags found --")
+	return 0
+
+
+def query(arguments):
+	pkg_url, pkg_version, pkg_path = package_resolve(arguments.package)
+	if arguments.check:
+		if pkg_version is None:
+			pkg_version = get_latest_tag(pkg_url, allow_empty=True)
+			pkg_exists = pkg_version is not None
+		else:
+			pkg_exists = pkg_version in get_all_tags(pkg_url, branches=True, tags=True, allow_empty=True)
+
+	if arguments.expand:
+		if pkg_version is None:
+			print("Unable to determine package version", file=sys.stderr)
+			return 1
+		else:
+			print("{}@{}{}".format(pkg_url, pkg_version, pkg_path))
+	else:
+		print("Input:", arguments.package)
+		if pkg_version is not None:
+			print("Expanded Name: {}@{}{}".format(pkg_url, pkg_version, pkg_path))
+		else:
+			print("Expanded Name:", None)
+		print("URL:", pkg_url)
+		print("Version:", pkg_version)
+		print("Path:", pkg_path)
+		if arguments.check:
+			print("Exists:", pkg_exists)
+
+		if arguments.versions:
+			print("")
+			t_args = type("QueryVersionArgs", (), {
+				"branches": True,
+				"tags": True,
+				"short": False,
+				"limit": None,
+				"package": arguments.package
+			})
+			return versions(t_args)
+
 	return 0
 
 
@@ -434,6 +479,12 @@ def main():
 	versions_parser.add_argument("--limit", action="store", type=int, help="Limit the returned lists to the LIMIT newest entries per type.")
 	versions_parser.add_argument("package", help="The package to list the versions for. Specify without a version of pro/pri file path!")
 
+	query_parser = sub_args.add_parser("query", help="Query details about a given package identifier")
+	query_parser.add_argument("--expand", action="store_true", help="Only expand the package name, don't output anything else.")
+	query_parser.add_argument("--no-check", dest="check", action="store_false", help="Do not check if the package actually exists.")
+	query_parser.add_argument("--versions", action="store_true", help="Also query and display all available tags and branches. See 'qdep.py versions' for alternative formats.")
+	query_parser.add_argument("package", help="The package to query information for.")
+
 	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
 	dephash_parser.add_argument("--project", action="store_true", help="Interpret input as a project dependency, not a normal pri dependency.")
 	dephash_parser.add_argument("--pkgpath", action="store_true", help="Return the hash and the pro/pri subpath as tuple, seperated by a ';'.")
@@ -482,6 +533,8 @@ def main():
 		result = clear(res)
 	elif res.operation == "versions":
 		result = versions(res)
+	elif res.operation == "query":
+		result = query(res)
 	elif res.operation == "dephash":
 		result = dephash(res)
 	elif res.operation == "pkgresolve":
