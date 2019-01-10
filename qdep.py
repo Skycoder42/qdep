@@ -208,8 +208,12 @@ def eval_pro_file(pro_file, qmake, make, full_eval=False):
 
 
 def prfgen(arguments):
-	qmake_res = subprocess.run([arguments.qmake, "-query", "QT_HOST_DATA"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
-	prf_path = path.join(str(qmake_res.stdout).strip(), "mkspecs", "features", "qdep.prf")
+	if arguments.dir is not None:
+		prf_path = arguments.dir
+	else:
+		qmake_res = subprocess.run([arguments.qmake, "-query", "QT_HOST_DATA"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+		prf_path = str(qmake_res.stdout).strip()
+	prf_path = path.join(prf_path, "mkspecs", "features", "qdep.prf")
 	print("Generating PRF-File as: ", prf_path)
 	with open(prf_path, "w") as prf_file:
 		self_path = path.abspath(__file__)
@@ -530,6 +534,7 @@ def main():
 
 	prfgen_parser = sub_args.add_parser("prfgen", help="Generate a qmake project feature (prf) for the given qmake.")
 	prfgen_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for.")
+	prfgen_parser.add_argument("-d", "--dir", dest="dir", action="store", help="The directory containing the mkspec folder where to place the prf file. If not specified, qmake is queried form the location.")
 
 	init_parser = sub_args.add_parser("init", help="Initialize a pro file to use qdep by adding the required lines.")
 	init_parser.add_argument("profile", help="The path to the pro file to add the qdep code to.")
