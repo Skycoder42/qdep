@@ -4,6 +4,7 @@ import sys
 import os
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
 
 
 qdep_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "qdep.py")
@@ -11,10 +12,14 @@ qmake_path = "qmake"
 
 
 def exec_qdep(args=[]):
+	print("Executing: qdep.py", " ".join(args))
+	sys.stdout.flush()
 	subprocess.run([qdep_path] + args, cwd=os.getcwd(), check=True)
 
 
 def exec_qmake(args=[]):
+	print("Executing: qmake", " ".join(args))
+	sys.stdout.flush()
 	subprocess.run([qmake_path] + args, cwd=os.getcwd(), check=True)
 
 
@@ -28,9 +33,25 @@ def test_init():
 		pro_file.write("TEMPLATE = aux\n")
 	exec_qdep(["init", "test.pro"])
 	with open("test.pro", "a") as pro_file:
-		pro_file.write("qdep_build:message(\"qdep loaded successfully!\")\n")
-		pro_file.write("else:error(\"qdep loaded but not activated!\")\n")
+		pro_file.write("!qdep_build:error(\"qdep loaded but not activated!\")\n")
 	exec_qmake()
+
+
+def test_lupdate():
+	with open("test.pri", "w") as pri_file:
+		pri_file.write("SOURCES += $$PWD/test.cpp\n")
+		pri_file.write("QDEP_TRANSLATIONS += $$PWD/test_de.ts\n")
+	with open("test.cpp", "w") as cpp_file:
+		cpp_file.write("#include <QCoreApplication>\n\n")
+		cpp_file.write("void test() {\n")
+		cpp_file.write("\tauto x = QCoreApplication::translate(\"GLOBAL\", \"Hello Tree\");\n")
+		cpp_file.write("}\n")
+	exec_qdep(["lupdate", "--qmake", qmake_path, "--pri-file", os.path.abspath("test.pri"), "--", "-no-ui-lines"])
+
+	assert os.path.isfile("test.pri")
+	root = ET.parse("test_de.ts").getroot()
+	assert root[0][1][1].text == "Hello Tree"
+
 
 
 def test_run(name, test_fn):
@@ -38,7 +59,6 @@ def test_run(name, test_fn):
 	os.makedirs(name)
 	os.chdir(name)
 
-	sys.stdout.flush()
 	test_fn()
 
 	os.chdir("..")
@@ -57,3 +77,4 @@ if __name__ == '__main__':
 
 	test_run("prfgen", test_prfgen)
 	test_run("init", test_init)
+	test_run("lupdate", test_lupdate)
