@@ -13,6 +13,11 @@ setuptools.setup(
 	long_description_content_type="text/markdown",
 	url="https://github.com/Skycoder42/qdep",
 	packages=setuptools.find_packages(),
+	install_requires=[
+		"appdirs",
+		"lockfile",
+		"argcomplete"
+	],
 	classifiers=[
 		"Programming Language :: Python :: 3",
 		"License :: OSI Approved :: BSD 3-Clause License",
