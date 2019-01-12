@@ -7,15 +7,14 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 
-local_run = False
-qdep_path = os.path.join(os.path.dirname(__file__), "..", "..", "testentry.py")
+qdep_path = None
 qmake_path = "qmake"
 
 
 def exec_qdep(args=[]):
-	print("Executing: qdep.py", " ".join(args))
+	print("Executing: qdep", " ".join(args))
 	sys.stdout.flush()
-	subprocess.run([qdep_path if local_run else "qdep"] + args, cwd=os.getcwd(), check=True)
+	subprocess.run([qdep_path] + args, cwd=os.getcwd(), check=True)
 
 
 def exec_qmake(args=[]):
@@ -27,6 +26,8 @@ def exec_qmake(args=[]):
 def test_prfgen():
 	exec_qdep(["prfgen", "-d", os.getcwd()])
 	assert os.path.isfile("mkspecs/features/qdep.prf")
+	with open("mkspecs/features/qdep.prf", "r") as prf_in:
+		print("qdep.prf: ", prf_in.readline().strip())
 
 
 def test_init():
@@ -69,8 +70,12 @@ def test_run(name, test_fn):
 if __name__ == '__main__':
 	if len(sys.argv) > 0:
 		qmake_path = sys.argv[1]
+
 	if len(sys.argv) > 1:
-		local_run = True
+		qdep_path = os.path.join(os.path.dirname(__file__), "..", "..", "testentry.py")
+	else:
+		qdep_path = shutil.which("qdep")
+		assert qdep_path is not None
 
 	cwd = os.path.join(os.getcwd(), "tests")
 	if os.path.exists(cwd):
