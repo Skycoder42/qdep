@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-$SUDO pip3 install appdirs lockfile argcomplete
+$SUDO pip3 install appdirs lockfile argcomplete setuptools
 mv tests/qdep.pro ./
 
 $SUDO pip3 install -e .

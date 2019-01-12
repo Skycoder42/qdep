@@ -1,6 +1,6 @@
 @echo off
 
-C:\Python37-x64\Scripts\pip.exe install appdirs lockfile argcomplete || exit /B 1
+C:\Python37-x64\Scripts\pip.exe install appdirs lockfile argcomplete setuptools || exit /B 1
 move tests\qdep.pro .\dep.pro || exit /B 1
 
 :: install qdep module
