@@ -67,22 +67,19 @@ def test_run(name, test_fn):
 
 
 if __name__ == '__main__':
-	args = sys.argv.copy()
-	while args[0] != "--start":
-		args = args[1:]
+	if len(sys.argv) > 1:
+		qmake_path = sys.argv[1]
 
-	if len(args) > 0:
-		qmake_path = args[1]
-
-	if len(args) > 1:
+	if len(sys.argv) > 2:
 		qdep_path = os.path.join(os.path.dirname(__file__), "..", "..", "testentry.py")
 	else:
 		qdep_path = shutil.which("qdep")
 		if qdep_path is None:
-			print("Failed to find qdep. Current path is: ", os.environ["PATH"], file=sys.stderr)
+			print("Failed to find qdep. Current path is:", os.environ["PATH"], file=sys.stderr)
 			sys.exit(1)
-		else:
-			print("Found qdep:", qdep_path)
+
+	print("qdep path:", qdep_path)
+	print("qmake path:", qmake_path)
 
 	cwd = os.path.join(os.getcwd(), "tests")
 	if os.path.exists(cwd):
