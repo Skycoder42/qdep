@@ -7,6 +7,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 
+local_run = False
 qdep_path = os.path.join(os.path.dirname(__file__), "..", "..", "testentry.py")
 qmake_path = "qmake"
 
@@ -14,7 +15,7 @@ qmake_path = "qmake"
 def exec_qdep(args=[]):
 	print("Executing: qdep.py", " ".join(args))
 	sys.stdout.flush()
-	subprocess.run([qdep_path] + args, cwd=os.getcwd(), check=True)
+	subprocess.run([qdep_path if local_run else "qdep"] + args, cwd=os.getcwd(), check=True)
 
 
 def exec_qmake(args=[]):
@@ -68,6 +69,8 @@ def test_run(name, test_fn):
 if __name__ == '__main__':
 	if len(sys.argv) > 0:
 		qmake_path = sys.argv[1]
+	if len(sys.argv) > 1:
+		local_run = True
 
 	cwd = os.path.join(os.getcwd(), "tests")
 	if os.path.exists(cwd):

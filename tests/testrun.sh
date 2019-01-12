@@ -23,7 +23,7 @@ fi
 if [ -z "$COMMANDS" ]; then
     mkdir -p "$BUILD_PATH"
     cd "$BUILD_PATH"
-    "$QMAKE" "$SCRIPT_PATH/project/"
+    "$QMAKE" "CONFIG+=local_test_run" "$SCRIPT_PATH/project/"
     make qmake_all
     make
 
@@ -36,6 +36,6 @@ if [ -z "$COMMANDS" ]; then
 else
     mkdir -p "$CMD_PATH"
     cd "$CMD_PATH"
-    "$QMAKE" "$SCRIPT_PATH/project/commands"
+    "$QMAKE" "CONFIG+=local_test_run" "$SCRIPT_PATH/project/commands"
     make run-tests
 fi
