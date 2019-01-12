@@ -91,7 +91,7 @@ def main():
 
 	try:
 		if res.operation == "prfgen":
-			prfgen(res)
+			prfgen(res, path.abspath(__file__))
 		elif res.operation == "init":
 			init(res)
 		elif res.operation == "lupdate":

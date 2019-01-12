@@ -11,7 +11,9 @@ CMD_PATH="$1/cmd"
 QMAKE="${2:-qmake}"
 COMMANDS="$3"
 
-"$SCRIPT_PATH/../qdep.py" prfgen --qmake "$QMAKE"
+export PYTHONPATH="$(realpath "$SCRIPT_PATH/.."):$PYTHONPATH"
+
+"$SCRIPT_PATH/testentry.py" prfgen --qmake "$QMAKE"
 
 mkdir -p "$TEST_PATH/testgitroot/Skycoder42"
 if [ ! -e "$TEST_PATH/testgitroot/Skycoder42/qdep" ]; then

@@ -1,7 +1,7 @@
 qdep_prf = """isEmpty(QDEP_VERSION): QDEP_VERSION = 1.0.0
 isEmpty(QDEP_TOOL) {
 	win32: QDEP_TOOL = python $$system_path($$QDEP_PATH)
-	else: QDEP_TOOL = $$system_path($$QDEP_PATH)
+	else: QDEP_TOOL = /usr/bin/env python3 $$system_path($$QDEP_PATH)
 }
 
 # verify versions are correct
