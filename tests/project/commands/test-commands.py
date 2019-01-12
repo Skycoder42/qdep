@@ -75,7 +75,9 @@ if __name__ == '__main__':
 		qdep_path = os.path.join(os.path.dirname(__file__), "..", "..", "testentry.py")
 	else:
 		qdep_path = shutil.which("qdep")
-		assert qdep_path is not None
+		if qdep_path is None:
+			print("Failed to find qdep. Current path is: ", os.environ["PATH"], file=sys.stderr)
+			sys.exit(1)
 
 	cwd = os.path.join(os.getcwd(), "tests")
 	if os.path.exists(cwd):
