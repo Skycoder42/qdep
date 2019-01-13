@@ -8,7 +8,7 @@ from qdep.internal.private import *
 
 def main():
 	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects.")
-	parser.add_argument("--version", action="version", version="1.0.0")
+	parser.add_argument("--version", action="version", version=version)
 	parser.add_argument("--trace", action="store_true", help="In case of an exception, print the whole stack trace")
 
 	sub_args = parser.add_subparsers(dest="operation", title="Operations", metavar="{operation}")
@@ -91,7 +91,7 @@ def main():
 
 	try:
 		if res.operation == "prfgen":
-			prfgen(res, path.abspath(__file__))
+			prfgen(res, path.realpath(sys.argv[0]))
 		elif res.operation == "init":
 			init(res)
 		elif res.operation == "lupdate":

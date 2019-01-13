@@ -1,11 +1,12 @@
 import setuptools
+from qdep.qdep import version
 
 with open("README.md", "r") as fh:
 	long_description = fh.read()
 
 setuptools.setup(
 	name="qdep",
-	version="1.0.0",
+	version=version,
 	author="Skycoder42",
 	author_email="skycoder42.de@gmx.de",
 	description="A very basic yet simple to use dependency management tool for qmake based projects",

@@ -1,8 +1,4 @@
-qdep_prf = """isEmpty(QDEP_VERSION): QDEP_VERSION = 1.0.0
-isEmpty(QDEP_TOOL) {
-	win32: QDEP_TOOL = python $$system_path($$QDEP_PATH)
-	else: QDEP_TOOL = /usr/bin/env python3 $$system_path($$QDEP_PATH)
-}
+qdep_prf = """isEmpty(QDEP_TOOL) QDEP_TOOL = $$system_path($$QDEP_PATH)
 
 # verify versions are correct
 __qdep_script_version = $$system($$QDEP_TOOL --version)
@@ -402,7 +398,7 @@ static|staticlib:equals(TEMPLATE, lib) {
 	__qdep_hook_generator_c.name = qdep hookgen ${QMAKE_FILE_IN}
 	__qdep_hook_generator_c.input = _PRO_FILE_ RESOURCES 
 	__qdep_hook_generator_c.variable_out = HEADERS
-	__qdep_hook_generator_c.commands = $$QDEP_TOOL hookgen --hooks $$QDEP_HOOK_FNS -- $${TARGET} ${QMAKE_FILE_OUT} ${QMAKE_FILE_IN}
+	__qdep_hook_generator_c.commands = $$QDEP_PATH hookgen --hooks $$QDEP_HOOK_FNS -- $${TARGET} ${QMAKE_FILE_OUT} ${QMAKE_FILE_IN}
 	__qdep_hook_generator_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_$${TARGET}_hooks.h
 	__qdep_hook_generator_c.CONFIG += target_predeps combine no_link
 	__qdep_hook_generator_c.depends += $$QDEP_PATH
@@ -411,7 +407,7 @@ static|staticlib:equals(TEMPLATE, lib) {
 	__qdep_hook_importer_c.name = qdep hookimp ${QMAKE_FILE_IN}
 	__qdep_hook_importer_c.input = _PRO_FILE_ __QDEP_HOOK_FILES
 	__qdep_hook_importer_c.variable_out = GENERATED_SOURCES
-	__qdep_hook_importer_c.commands = $$QDEP_TOOL hookimp --hooks $$QDEP_HOOK_FNS -- ${QMAKE_FILE_OUT} ${QMAKE_FILE_IN}
+	__qdep_hook_importer_c.commands = $$QDEP_PATH hookimp --hooks $$QDEP_HOOK_FNS -- ${QMAKE_FILE_OUT} ${QMAKE_FILE_IN}
 	__qdep_hook_importer_c.output = $$QDEP_GENERATED_SOURCES_DIR/qdep_imported_hooks.cpp
 	__qdep_hook_importer_c.CONFIG += target_predeps combine
 	__qdep_hook_importer_c.depends += $$QDEP_PATH
@@ -443,7 +439,7 @@ qm_files.CONFIG += no_check_exist
 	__qdep_qm_combine_c.name = qdep lrelease ${QMAKE_FILE_IN}
 	__qdep_qm_combine_c.input = __QDEP_ORIGINAL_TRANSLATIONS 
 	__qdep_qm_combine_c.variable_out = TRANSLATIONS
-	__qdep_qm_combine_c.commands = $$QDEP_TOOL lconvert --combine $$__qdep_ts_tmp -- ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT} $$QDEP_LCONVERT
+	__qdep_qm_combine_c.commands = $$QDEP_PATH lconvert --combine $$__qdep_ts_tmp -- ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT} $$QDEP_LCONVERT
 	__qdep_qm_combine_c.output = $$QDEP_GENERATED_TS_DIR/${QMAKE_FILE_BASE}.ts
 	__qdep_qm_combine_c.CONFIG += no_link
 	__qdep_qm_combine_c.depends += $$QDEP_PATH $$QDEP_LCONVERT_EXE $$QDEP_TRANSLATIONS
