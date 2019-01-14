@@ -41,7 +41,7 @@ def pkg_hash(pkg_url, pkg_path):
 
 def package_resolve(package, pkg_version=None, project=False):
 	pattern = re.compile(r'^(?:([^@\/]+\/[^@\/]+)|(\w+:\/\/.*\.git|[^@:]*@[^@]*:[^@]+\.git))(?:@([^\/\s]+)(\/.*)?)?$')
-	path_pattern = re.compile(r'^.*\/([^\/]+)\.git$')
+	path_pattern = re.compile(r'^.*\/([^\/]+)\/?\.git$')
 
 	match = re.match(pattern, package)
 	if not match:
