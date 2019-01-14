@@ -72,7 +72,7 @@ def package_resolve(package, pkg_version=None, project=False):
 	return pkg_url, pkg_branch, pkg_path
 
 
-def get_all_tags(pkg_url, branches=False, tags=True, allow_empty=False):
+def get_all_tags(pkg_url, branches=False, tags=True, allow_empty=False, allow_error=False):
 	ls_args = ["git", "ls-remote", "--refs"]
 	if not branches and tags:
 		ls_args.append("--tags")
@@ -84,7 +84,7 @@ def get_all_tags(pkg_url, branches=False, tags=True, allow_empty=False):
 		return []  # Nothing to check for
 	ls_args.append(pkg_url)
 
-	ls_res = subprocess.run(ls_args, check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+	ls_res = subprocess.run(ls_args, check=not allow_error, stdout=subprocess.PIPE, encoding="UTF-8")
 	ref_pattern = re.compile(r'[a-fA-F0-9]+\s+refs\/(?:tags|heads)\/([^\s]+)')
 	tags = []
 	for match in re.finditer(ref_pattern, ls_res.stdout):
@@ -92,8 +92,8 @@ def get_all_tags(pkg_url, branches=False, tags=True, allow_empty=False):
 	return tags
 
 
-def get_latest_tag(pkg_url, allow_empty=False):
-	all_tags = get_all_tags(pkg_url, allow_empty=allow_empty)
+def get_latest_tag(pkg_url, allow_empty=False, allow_error=False):
+	all_tags = get_all_tags(pkg_url, allow_empty=allow_empty, allow_error=allow_error)
 	if len(all_tags) > 0:
 		return all_tags[-1]
 	else:

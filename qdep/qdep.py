@@ -115,10 +115,10 @@ def query(arguments):
 	pkg_url, pkg_version, pkg_path = package_resolve(arguments.package)
 	if arguments.check:
 		if pkg_version is None:
-			pkg_version = get_latest_tag(pkg_url, allow_empty=True)
+			pkg_version = get_latest_tag(pkg_url, allow_empty=True, allow_error=True)
 			pkg_exists = pkg_version is not None
 		else:
-			pkg_exists = pkg_version in get_all_tags(pkg_url, branches=True, tags=True, allow_empty=True)
+			pkg_exists = pkg_version in get_all_tags(pkg_url, branches=True, tags=True, allow_empty=True, allow_error=True)
 	else:
 		pkg_exists = False  # not knowing means false
 

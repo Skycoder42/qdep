@@ -7,14 +7,23 @@ import subprocess
 import xml.etree.ElementTree as ET
 
 
+is_local_run = False
 qdep_path = None
 qmake_path = "qmake"
 
 
 def exec_process(name, proc, args, keep_stdout=False, keep_stderr=False):
 	print("Executing:", name, " ".join(args))
+
+	if "QDEP_DEFAULT_PKG_FN" in os.environ:
+		proc_env = os.environ.copy()
+		proc_env.pop("QDEP_DEFAULT_PKG_FN")
+	else:
+		proc_env = os.environ
+
 	sys.stdout.flush()
-	run_res = subprocess.run([proc] + args, cwd=os.getcwd(), check=True, stdout=subprocess.PIPE if keep_stdout else None, stderr=subprocess.PIPE if keep_stderr else None, encoding="UTF-8")
+	run_res = subprocess.run([proc] + args, cwd=os.getcwd(), check=True, stdout=subprocess.PIPE if keep_stdout else None, stderr=subprocess.PIPE if keep_stderr else None, encoding="UTF-8", env=proc_env)
+
 	if keep_stdout:
 		stdout_data = str(run_res.stdout)
 	else:
@@ -68,7 +77,7 @@ def test_lupdate():
 
 def test_versions():
 	def v_fetch(args, strip=True):
-		vs_sout, _e = exec_qdep(["versions"] + args + ["https://github.com/Skycoder42/qpmx-sample-package.git"], keep_stdout=True)
+		vs_sout, _e = exec_qdep(["versions"] + args + ["Skycoder42/qpmx-sample-package"], keep_stdout=True)
 		if strip:
 			vs_list = map(lambda s: s.strip(), vs_sout.strip().split("\n"))
 			return list(vs_list)
@@ -94,16 +103,86 @@ def test_versions():
 	assert v_res == ["1.0.7", "1.0.8", "1.0.9", "1.1.0", "1.2.0"]
 
 
+def test_query():
+	def q_fetch(args, package="Skycoder42/qpmx-sample-package", keep_stderr=False):
+		qry_sout, _e = exec_qdep(["query"] + args + [package], keep_stdout=True, keep_stderr=keep_stderr)
+		qry_list = map(lambda s: s.strip(), qry_sout.strip().split("\n"))
+		return list(qry_list)
+
+	q_res = q_fetch([])
+	assert q_res == [
+		"Input: Skycoder42/qpmx-sample-package",
+		"Expanded Name: https://github.com/Skycoder42/qpmx-sample-package.git@1.2.0/qpmx-sample-package.pri",
+		"URL: https://github.com/Skycoder42/qpmx-sample-package.git",
+		"Version: 1.2.0",
+		"Path: /qpmx-sample-package.pri",
+		"Exists: True"
+	]
+
+	q_res = q_fetch(["--expand"])
+	assert q_res == ["https://github.com/Skycoder42/qpmx-sample-package.git@1.2.0/qpmx-sample-package.pri"]
+
+	q_res = q_fetch(["--no-check"])
+	assert q_res == [
+		"Input: Skycoder42/qpmx-sample-package",
+		"Expanded Name: None",
+		"URL: https://github.com/Skycoder42/qpmx-sample-package.git",
+		"Version: None",
+		"Path: /qpmx-sample-package.pri"
+	]
+
+	q_res = q_fetch(["--no-check"], package="Skycoder42/qpmx-sample-package@1.2.0")
+	assert q_res == [
+		"Input: Skycoder42/qpmx-sample-package@1.2.0",
+		"Expanded Name: https://github.com/Skycoder42/qpmx-sample-package.git@1.2.0/qpmx-sample-package.pri",
+		"URL: https://github.com/Skycoder42/qpmx-sample-package.git",
+		"Version: 1.2.0",
+		"Path: /qpmx-sample-package.pri"
+	]
+
+	q_res = q_fetch(["--versions"])
+	assert q_res[0:15] == [
+		"Input: Skycoder42/qpmx-sample-package",
+		"Expanded Name: https://github.com/Skycoder42/qpmx-sample-package.git@1.2.0/qpmx-sample-package.pri",
+		"URL: https://github.com/Skycoder42/qpmx-sample-package.git",
+		"Version: 1.2.0",
+		"Path: /qpmx-sample-package.pri",
+		"Exists: True",
+		"",
+		"Branches:", "master", "", "Tags:", "1.0.0", "1.0.1", "1.0.10", "1.0.11"
+	]
+
+	q_res = q_fetch([], package="Skycoder42/qpmx-sample-package@9.9.9")
+	assert q_res == [
+		"Input: Skycoder42/qpmx-sample-package@9.9.9",
+		"Expanded Name: https://github.com/Skycoder42/qpmx-sample-package.git@9.9.9/qpmx-sample-package.pri",
+		"URL: https://github.com/Skycoder42/qpmx-sample-package.git",
+		"Version: 9.9.9",
+		"Path: /qpmx-sample-package.pri",
+		"Exists: False"
+	]
+
+	q_res = q_fetch([], package="file:///invalid/path/.git", keep_stderr=True)
+	assert q_res == [
+		"Input: file:///invalid/path/.git",
+		"Expanded Name: None",
+		"URL: file:///invalid/path/.git",
+		"Version: None",
+		"Path: /path.pri",
+		"Exists: False"
+	]
+
+
 def test_clear():  # TODO implement later
 	pass
 
 
-def test_run(name, test_fn):
+def test_run(name, test_fn, **kwargs):
 	print("\n*** Running test:", name)
 	os.makedirs(name)
 	os.chdir(name)
 
-	test_fn()
+	test_fn(**kwargs)
 
 	os.chdir("..")
 	print("*** SUCCESS")
@@ -114,6 +193,7 @@ if __name__ == '__main__':
 		qmake_path = sys.argv[1]
 
 	if len(sys.argv) > 2:
+		is_local_run = True
 		qdep_path = os.path.join(os.path.dirname(__file__), "..", "..", "testentry.py")
 	else:
 		qdep_path = shutil.which("qdep")
@@ -134,4 +214,5 @@ if __name__ == '__main__':
 	test_run("init", test_init)
 	test_run("lupdate", test_lupdate)
 	test_run("versions", test_versions)
+	test_run("query", test_query)
 	test_run("clear", test_clear)
