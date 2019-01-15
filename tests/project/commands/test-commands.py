@@ -173,6 +173,10 @@ def test_query():
 	]
 
 
+def test_get():
+	exec_qdep(["get", "--help"])
+
+
 def test_clear():  # TODO implement later
 	pass
 
@@ -215,4 +219,5 @@ if __name__ == '__main__':
 	test_run("lupdate", test_lupdate)
 	test_run("versions", test_versions)
 	test_run("query", test_query)
+	test_run("get", test_get)
 	test_run("clear", test_clear)

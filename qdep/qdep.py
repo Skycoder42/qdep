@@ -1,3 +1,5 @@
+import sys
+
 from qdep.internal.common import *
 from qdep.internal.prf import *
 
@@ -5,11 +7,11 @@ from qdep.internal.prf import *
 version = "1.0.0"
 
 
-def prfgen(arguments, script_path):
-	if arguments.dir is not None:
-		prf_path = arguments.dir
+def prfgen(script_path, qmake="qmake", data_dir=None):
+	if data_dir is not None:
+		prf_path = data_dir
 	else:
-		qmake_res = subprocess.run([arguments.qmake, "-query", "QT_HOST_DATA"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+		qmake_res = subprocess.run([qmake, "-query", "QT_HOST_DATA"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
 		prf_path = str(qmake_res.stdout).strip()
 	prf_path = path.join(prf_path, "mkspecs", "features", "qdep.prf")
 	print("Generating PRF-File as: ", prf_path)
@@ -26,24 +28,27 @@ def prfgen(arguments, script_path):
 		prf_file.write("\n}\n")
 
 
-def init(arguments):
-	with open(arguments.profile, "a") as pro_file:
+def init(profile):
+	with open(profile, "a") as pro_file:
 		pro_file.write("\nQDEP_DEPENDS = \n\n")
 		pro_file.write("!load(qdep):error(\"Failed to load qdep feature! Run 'qdep.py prfgen --qmake $$QMAKE_QMAKE' to create it.\")\n")
 
 
-def lupdate(arguments):
-	qmake_res = subprocess.run([arguments.qmake, "-query", "QT_HOST_BINS"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+def lupdate(pri_path, qmake="qmake", lupdate_args=None):
+	if lupdate_args is None:
+		lupdate_args = []
+
+	qmake_res = subprocess.run([qmake, "-query", "QT_HOST_BINS"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
 	lupdate_path = path.join(str(qmake_res.stdout).strip(), "lupdate")
 	with tempfile.TemporaryDirectory() as tmp_dir:
 		tmp_pro_path = path.join(tmp_dir, "lupdate.pro")
 		with open(tmp_pro_path, "w") as tmp_file:
-			tmp_file.write("include({})\n".format(arguments.pri_path))
+			tmp_file.write("include({})\n".format(pri_path))
 			tmp_file.write("TRANSLATIONS = $$QDEP_TRANSLATIONS\n")
-		subprocess.run([lupdate_path] + arguments.largs + [tmp_pro_path], check=True)
+		subprocess.run([lupdate_path] + lupdate_args + [tmp_pro_path], check=True)
 
 
-def clear(arguments):
+def clear(no_confirm=False):
 	def folder_size(path):
 		total = 0
 		for entry in os.scandir(path):
@@ -53,7 +58,7 @@ def clear(arguments):
 				total += folder_size(entry.path)
 		return total
 
-	if not arguments.yes:
+	if not no_confirm:
 		print("All caches sources will be removed and have to be downloaded again. Make sure no other qdep instance is currently running!")
 		ok = input("Do you really want ro remove all cached sources? [y/N]").lower()
 		if len(ok) == 0:
@@ -71,27 +76,27 @@ def clear(arguments):
 	print("Removed {} bytes".format(rm_size))
 
 
-def versions(arguments):
-	package_url, _v, _p = package_resolve(arguments.package)
+def versions(package, tags=True, branches=False, short=False, limit=None):
+	package_url, _v, _p = package_resolve(package)
 
-	if arguments.tags:
+	if tags:
 		pkg_tags = get_all_tags(package_url, tags=True, branches=False, allow_empty=True)
-		if arguments.limit is not None:
-			pkg_tags = pkg_tags[-arguments.limit:]
+		if limit is not None:
+			pkg_tags = pkg_tags[-limit:]
 	else:
 		pkg_tags = []
 
-	if arguments.branches:
+	if branches:
 		pkg_branches = get_all_tags(package_url, tags=False, branches=True, allow_empty=True)
-		if arguments.limit is not None:
-			pkg_branches = pkg_branches[-arguments.limit:]
+		if limit is not None:
+			pkg_branches = pkg_branches[-limit:]
 	else:
 		pkg_branches = []
 
-	if arguments.short:
+	if short:
 		print(" ".join(pkg_branches + pkg_tags))
 	else:
-		if arguments.branches:
+		if branches:
 			print("Branches:")
 			if len(pkg_branches) > 0:
 				for branch in pkg_branches:
@@ -99,8 +104,8 @@ def versions(arguments):
 			else:
 				print(" -- No branches found --")
 
-		if arguments.tags:
-			if arguments.branches:
+		if tags:
+			if branches:
 				print("")
 
 			print("Tags:")
@@ -111,9 +116,9 @@ def versions(arguments):
 				print(" -- No tags found --")
 
 
-def query(arguments):
-	pkg_url, pkg_version, pkg_path = package_resolve(arguments.package)
-	if arguments.check:
+def query(package, check=True, print_versions=False, expand=False):
+	pkg_url, pkg_version, pkg_path = package_resolve(package)
+	if check:
 		if pkg_version is None:
 			pkg_version = get_latest_tag(pkg_url, allow_empty=True, allow_error=True)
 			pkg_exists = pkg_version is not None
@@ -122,13 +127,13 @@ def query(arguments):
 	else:
 		pkg_exists = False  # not knowing means false
 
-	if arguments.expand:
+	if expand:
 		if pkg_version is None:
 			raise Exception("Unable to determine package version")
 		else:
 			print("{}@{}{}".format(pkg_url, pkg_version, pkg_path))
 	else:
-		print("Input:", arguments.package)
+		print("Input:", package)
 		if pkg_version is not None:
 			print("Expanded Name: {}@{}{}".format(pkg_url, pkg_version, pkg_path))
 		else:
@@ -136,44 +141,36 @@ def query(arguments):
 		print("URL:", pkg_url)
 		print("Version:", pkg_version)
 		print("Path:", pkg_path)
-		if arguments.check:
+		if check:
 			print("Exists:", pkg_exists)
 
-		if arguments.versions:
+		if print_versions:
 			print("")
-			t_args = type("QueryVersionArgs", (), {
-				"branches": True,
-				"tags": True,
-				"short": False,
-				"limit": None,
-				"package": arguments.package
-			})
-			versions(t_args)
+			versions(package, branches=True)
 
 
-def get(arguments):
-	print(arguments)
-
-	if arguments.dir is not None:
-		os.environ["QDEP_CACHE_DIR"] = arguments.dir
+def get(*targets, extract=False, evaluate=False, recurse=True, qmake="qmake", make="make", cache_dir=None):
+	print(targets)
+	if cache_dir is not None:
+		os.environ["QDEP_CACHE_DIR"] = cache_dir
 
 	# eval the pro files if needed
-	if arguments.eval:
+	if evaluate:
 		# special case: since we only download sources, a simple qmake run is enough, no actual "evaluation" needed
-		for pro_file in arguments.args:
+		for pro_file in targets:
 			with tempfile.TemporaryDirectory() as tmp_dir:
-				print("Running {} on {}...".format(arguments.qmake, pro_file))
-				subprocess.run([arguments.qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
-				print("Running {} qmake_all...".format(arguments.make))
-				subprocess.run([arguments.make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+				print("Running {} on {}...".format(qmake, pro_file))
+				subprocess.run([qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+				print("Running {} qmake_all...".format(make))
+				subprocess.run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
 				print("Done! qmake finished successfully, all qdep sources for the project tree have been downloaded.")
 		return
-	elif arguments.extract:
+	elif extract:
 		packages = []
-		for pro_file in arguments.args:
-			packages = packages + eval_pro_file(pro_file, arguments.qmake, arguments.make, full_eval=False)
+		for pro_file in targets:
+			packages = packages + eval_pro_file(pro_file, qmake, make, full_eval=False)
 	else:
-		packages = arguments.args
+		packages = targets
 
 	# download the actual sources
 	print("Downloading {} packages total".format(len(packages)))

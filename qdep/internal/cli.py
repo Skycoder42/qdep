@@ -22,7 +22,7 @@ def main():
 
 	lupdate_parser = sub_args.add_parser("lupdate", help="Run lupdate for the QDEP_TRANSLATION variable in a given pri file.")
 	lupdate_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to find the corresponding lupdate for.")
-	lupdate_parser.add_argument("--pri-file", dest="pri_path", action="store", help="The path to the pri-file that contains a QDEP_TRANSLATIONS variable, to generate translations for.")
+	lupdate_parser.add_argument("--pri-file", dest="pri_path", action="store", required=True, help="The path to the pri-file that contains a QDEP_TRANSLATIONS variable, to generate translations for.")
 	lupdate_parser.add_argument("largs", action="store", nargs="*", metavar="lupdate-argument", help="Additionals arguments to be passed to lupdate. MUST be proceeded by '--'!")
 
 	clear_parser = sub_args.add_parser("clear", help="Remove all sources from the users global cache.")
@@ -43,7 +43,8 @@ def main():
 
 	get_parser = sub_args.add_parser("get", help="Download the sources of one ore more packages into the source cache.")
 	get_parser.add_argument("--extract", action="store_true", help="Run in pro-file mode. Arguments are interpreted as pro files and are scanned for dependencies")
-	get_parser.add_argument("--eval", action="store_true", help="Fully evaluate all pro files by running qmake on them. Implies '--extract' ")
+	get_parser.add_argument("--eval", action="store_true", help="Fully evaluate all pro files by running qmake on them. Implies '--extract'.")
+	get_parser.add_argument("--no-recurse", dest="recurse", action="store_false", help="Do not scan downloaded packages for further dependencies.")
 	get_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to use for evaluation if '--eval' was specified.")
 	get_parser.add_argument("--make", action="store", default="make", help="The path to a make executable to use for evaluation if '--eval' was specified.")
 	get_parser.add_argument("-d", "--dir", "--cache-dir", dest="dir", action="store", help="Specify the directory where to download the sources to. Shorthand for using the QDEP_CACHE_DIR environment variable.")
@@ -91,38 +92,38 @@ def main():
 
 	try:
 		if res.operation == "prfgen":
-			prfgen(res, path.realpath(sys.argv[0]))
+			prfgen(path.abspath(sys.argv[0]), res.qmake, res.dir)
 		elif res.operation == "init":
-			init(res)
+			init(res.profile)
 		elif res.operation == "lupdate":
-			lupdate(res)
+			lupdate(res.pri_path, res.qmake, res.largs)
 		elif res.operation == "clear":
-			clear(res)
+			clear(res.yes)
 		elif res.operation == "versions":
-			versions(res)
+			versions(res.package, res.tags, res.branches, res.short, res.limit)
 		elif res.operation == "query":
-			query(res)
+			query(res.package, res.check, res.versions, res.expand)
 		elif res.operation == "get":
-			get(res)
+			get(*res.args, extract=res.extract, evaluate=res.eval, recurse=res.recurse, qmake=res.qmake, make=res.make, cache_dir=res.dir)
 		elif res.operation == "dephash":
-			dephash(res)
+			dephash(*res.input, project=res.project, pkgpath=res.pkgpath)
 		elif res.operation == "pkgresolve":
-			pkgresolve(res)
+			pkgresolve(res.package, res.version, res.project, res.pull, res.clone)
 		elif res.operation == "hookgen":
-			hookgen(res)
+			hookgen(res.prefix, res.header, res.resources, res.hooks)
 		elif res.operation == "hookimp":
-			hookimp(res)
+			hookimp(res.outfile, res.headers, res.hooks)
 		elif res.operation == "lconvert":
-			lconvert(res)
+			lconvert(res.tsfile, res.outfile, *res.combine, lconvert_args=res.largs)
 		elif res.operation == "prolink":
-			prolink(res)
+			prolink(res.prodir, res.pkghash, res.pkgpath, res.link)
 		else:
 			parser.print_help()
 			return 1
 
 		return 0
 	except Exception as exception:
-		if res.trace:
+		if res.trace or True:
 			raise
 		else:
 			print(exception, file=sys.stderr)
