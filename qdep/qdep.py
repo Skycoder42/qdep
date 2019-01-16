@@ -166,7 +166,7 @@ def get(*targets, extract=False, evaluate=False, recurse=True, qmake="qmake", ma
 		packages = []
 		for pro_file in targets:
 			print("Extracting dependencies from {}...".format(pro_file))
-			packages = packages + eval_pro_file(pro_file, qmake, make, full_eval=False)
+			packages = packages + extract_pro_depends(pro_file, qmake, make)
 	else:
 		packages = list(targets)
 
@@ -184,10 +184,56 @@ def get(*targets, extract=False, evaluate=False, recurse=True, qmake="qmake", ma
 
 		if recurse:
 			print("Extracting dependencies from {}...".format(package))
-			new_packages = eval_pro_file(path.join(cache_dir, pkg_path[1:]), qmake, make, full_eval=False)
+			new_packages = extract_pro_depends(path.join(cache_dir, pkg_path[1:]), qmake, make)
 			print("Found {} dependent packages".format(len(new_packages)))
 			for pkg in new_packages:
 				packages.append(pkg)
 
 		pkg_hashes.add(p_hash)
 	print("Done!")
+
+
+def update(pro_file, evaluate=False, replace=False, qmake="qmake", make="make"):
+	if evaluate:
+		raise NotImplementedError()
+	else:
+		# evalute the pro file to extract the dependencies
+		print("Extracting dependencies from {}...".format(pro_file))
+		packages = extract_pro_depends(pro_file, qmake, make)
+
+		pkg_all = []
+		pkg_new = {}
+		for package in packages:
+			pkg_url, pkg_version, _p = package_resolve(package)
+			if pkg_version is None:
+				pkg_all.append(package)
+				continue
+
+			# check if the package actually has any tags
+			all_tags = get_all_tags(pkg_url, allow_empty=True)
+			if len(all_tags) == 0:
+				pkg_all.append(package)
+				continue
+
+			# check if actually a tag and not a branch
+			if pkg_version not in all_tags and pkg_version in get_all_tags(pkg_url, branches=True, tags=False, allow_empty=True):
+				pkg_all.append(package)
+				continue
+
+			# check if latest tag has changed
+			if all_tags[-1] != pkg_version:
+				pkg_name, _v, pkg_path = package_resolve(package, expand=False)
+				print("Found a new version for package {}: {} -> {}".format(pkg_name, pkg_version, all_tags[-1]))
+				new_pkg = "{}@{}{}".format(pkg_name, all_tags[-1], pkg_path)
+				pkg_all.append(new_pkg)
+				pkg_new[package] = new_pkg
+			else:
+				pkg_all.append(package)
+
+		if replace:
+			replace_pro_depends(pro_file, pkg_new)
+			print("Updated dependencies in {} - please check if the file has not been corrupted!".format(pro_file))
+		else:
+			print("")
+			print("QDEP_DEPENDS =", format(" \\\n\t".join(pkg_all)))
+			print("")

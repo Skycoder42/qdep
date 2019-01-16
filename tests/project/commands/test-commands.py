@@ -225,6 +225,43 @@ def test_get():
 	assert len(sout) == 3
 
 
+def test_update():
+	def u_run(*args, strip_eval=False):
+		sout, _e = exec_qdep("update", "--qmake", qmake_path, "--make", make_path, *args, keep_stdout=strip_eval)
+		if strip_eval:
+			return list(map(lambda s: s.strip(), sout.strip().split("\n")))
+		else:
+			return None
+
+	exec_qdep("update", "--help")
+
+	with open("normal.pro", "w") as pro_file:
+		pro_file.write("QDEP_DEPENDS += Skycoder42/qpmx-sample-package@1.0.0/qpmx-sample-package.prc\n")
+		pro_file.write("QDEP_DEPENDS += Skycoder42/qpmx-sample-package\n")
+		pro_file.write("QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri\n\n")
+	exec_qdep("init", os.path.abspath("normal.pro"))
+	u_res = u_run(os.path.abspath("normal.pro"), strip_eval=True)
+	assert len(u_res) == 6
+	assert u_res[1] == "Found a new version for package Skycoder42/qpmx-sample-package: 1.0.0 -> 1.2.0"
+	assert u_res[3:] == [
+		"QDEP_DEPENDS = Skycoder42/qpmx-sample-package@1.2.0/qpmx-sample-package.prc \\",
+		"Skycoder42/qpmx-sample-package \\",
+		"Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri"
+	]
+
+	u_run("--replace", os.path.abspath("normal.pro"))
+	with open("normal.pro", "a") as pro_file:
+		pro_file.write("write_file($$PWD/normal.txt, QDEP_DEPENDS)\n")
+	exec_qmake("normal.pro")
+	with open("normal.txt", "r") as txt_file:
+		txt_lines = txt_file.readlines()
+	assert txt_lines == [
+		"Skycoder42/qpmx-sample-package@1.2.0/qpmx-sample-package.prc\n",
+		"Skycoder42/qpmx-sample-package\n",
+		"Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri\n"
+	]
+
+
 def test_clear():  # TODO implement later
 	pass
 
@@ -276,4 +313,5 @@ if __name__ == '__main__':
 	test_run("versions", test_versions)
 	test_run("query", test_query)
 	test_run("get", test_get)
+	test_run("update", test_update)
 	test_run("clear", test_clear)

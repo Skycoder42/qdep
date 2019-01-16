@@ -50,6 +50,13 @@ def main():
 	get_parser.add_argument("-d", "--dir", "--cache-dir", dest="dir", action="store", help="Specify the directory where to download the sources to. Shorthand for using the QDEP_CACHE_DIR environment variable.")
 	get_parser.add_argument("args", nargs="+", help="The packages (or pro files if using '--extract') to download the sources for.")
 
+	update_parser = sub_args.add_parser("update", help="Check for newer versions of used packages and optionally update them.")
+	update_parser.add_argument("--eval", action="store_true", help="Fully evaluate all pro files by running qmake on them.")
+	update_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to use for evaluation if '--eval' was specified.")
+	update_parser.add_argument("--make", action="store", default="make", help="The path to a make executable to use for evaluation if '--eval' was specified.")
+	update_parser.add_argument("--replace", action="store_true", help="Automatically replace newer packages in the evaluated project files instead of printing to the console.")
+	update_parser.add_argument("profile", metavar="pro-file", help="The qmake pro-file to update dependencies for.")
+
 	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
 	dephash_parser.add_argument("--project", action="store_true", help="Interpret input as a project dependency, not a normal pri dependency.")
 	dephash_parser.add_argument("--pkgpath", action="store_true", help="Return the hash and the pro/pri subpath as tuple, seperated by a ';'.")
@@ -105,6 +112,8 @@ def main():
 			query(res.package, res.check, res.versions, res.expand)
 		elif res.operation == "get":
 			get(*res.args, extract=res.extract, evaluate=res.eval, recurse=res.recurse, qmake=res.qmake, make=res.make, cache_dir=res.dir)
+		elif res.operation == "update":
+			update(res.profile, res.eval, res.replace, res.qmake, res.make)
 		elif res.operation == "dephash":
 			dephash(*res.input, project=res.project, pkgpath=res.pkgpath)
 		elif res.operation == "pkgresolve":

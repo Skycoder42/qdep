@@ -46,7 +46,7 @@ def sub_run(*args, **kwargs):
 	return subprocess.run(*args, **kwargs)
 
 
-def package_resolve(package, pkg_version=None, project=False):
+def package_resolve(package, pkg_version=None, project=False, expand=True):
 	pattern = re.compile(r'^(?:([^@\/]+\/[^@\/]+)|(\w+:\/\/.*\.git|[^@:]*@[^@]*:[^@]+\.git))(?:@([^\/\s]+)(\/.*)?)?$')
 	path_pattern = re.compile(r'^.*\/([^\/]+)\/?\.git$')
 
@@ -56,7 +56,10 @@ def package_resolve(package, pkg_version=None, project=False):
 
 	# extract package url
 	if match.group(1) is not None:
-		pkg_url = os.getenv("QDEP_DEFAULT_PKG_FN", "https://github.com/{}.git").format(match.group(1))
+		if not expand:
+			pkg_url = match.group(1)
+		else:
+			pkg_url = os.getenv("QDEP_DEFAULT_PKG_FN", "https://github.com/{}.git").format(match.group(1))
 	elif match.group(2) is not None:
 		pkg_url = match.group(2)
 	else:
@@ -73,6 +76,8 @@ def package_resolve(package, pkg_version=None, project=False):
 	# extract pri path
 	if match.group(4) is not None:
 		pkg_path = match.group(4)
+	elif not expand:
+		pkg_path = ""
 	else:
 		pkg_path = "/" + re.match(path_pattern, pkg_url).group(1) + (".pro" if project else ".pri")
 
@@ -148,24 +153,29 @@ def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
 	return cache_dir, pkg_branch
 
 
-def eval_pro_file(pro_file, qmake, make, full_eval=False):
+def extract_pro_depends(pro_file, qmake, make):
 	packages = []
 
 	with tempfile.TemporaryDirectory() as tmp_dir:
-		if full_eval:
-			print("Running {} on {}...".format(qmake, pro_file))
-			sub_run([qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
-			print("Running {} qmake_all...".format(make))
-			sub_run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
-			print("Done! qmake finished successfully, all qdep sources have been downloaded.")
-		else:
-			dump_name = path.join(tmp_dir, "qdep_dummy.pro")
-			with open(dump_name, "w") as dump_file:
-				dump_file.write("QDEP_DEPENDS = $$fromfile($$quote({}), QDEP_DEPENDS)\n".format(pro_file))
-				dump_file.write("!write_file($$PWD/qdep_depends.txt, QDEP_DEPENDS):error(\"write error\")\n")
-			sub_run([qmake, dump_name], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
-			with open(path.join(tmp_dir, "qdep_depends.txt"), "r") as dep_file:
-				for line in dep_file.readlines():
-					packages.append(line.strip())
+		dump_name = path.join(tmp_dir, "qdep_dummy.pro")
+		with open(dump_name, "w") as dump_file:
+			dump_file.write("QDEP_DEPENDS = $$fromfile($$quote({}), QDEP_DEPENDS)\n".format(pro_file))
+			dump_file.write("!write_file($$PWD/qdep_depends.txt, QDEP_DEPENDS):error(\"write error\")\n")
+		sub_run([qmake, dump_name], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+		with open(path.join(tmp_dir, "qdep_depends.txt"), "r") as dep_file:
+			for line in dep_file.readlines():
+				packages.append(line.strip())
 
 	return packages
+
+
+def replace_pro_depends(pro_file, replacements):
+	with open(pro_file, "r") as in_file:
+		with open(pro_file + ".qdepnew", "w") as out_file:
+			for line in in_file:
+				for src, repl in replacements.items():
+					line = line.replace(src, repl)
+				out_file.write(line)
+
+	os.remove(pro_file)
+	os.rename(pro_file + ".qdepnew", pro_file)
