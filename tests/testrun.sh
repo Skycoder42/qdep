@@ -8,8 +8,11 @@ SCRIPT_PATH="$(readlink -f "$(dirname "$0")")"
 TEST_PATH="$1"
 BUILD_PATH="$1/project"
 CMD_PATH="$1/cmd"
-QMAKE="${2:-qmake}"
-COMMANDS="$3"
+shift
+QMAKE="${1:-qmake}"
+shift || true
+COMMANDS="$1"
+shift || true
 
 export PYTHONPATH="$(realpath "$SCRIPT_PATH/.."):$PYTHONPATH"
 
@@ -36,6 +39,7 @@ if [ -z "$COMMANDS" ]; then
 else
     mkdir -p "$CMD_PATH"
     cd "$CMD_PATH"
-    "$QMAKE" "CONFIG+=local_test_run" "$SCRIPT_PATH/project/commands"
+    expanded=$@
+    "$QMAKE" "CONFIG+=local_test_run" "TEST_RUN_ARGS=$expanded" "$SCRIPT_PATH/project/commands"
     make run-tests
 fi

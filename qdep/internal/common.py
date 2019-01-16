@@ -4,6 +4,7 @@ import re
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 from os import path
 
@@ -37,6 +38,12 @@ def get_override_map():
 
 def pkg_hash(pkg_url, pkg_path):
 	return "__QDEP_PKG_" + hashlib.sha3_256((pkg_url + pkg_path).encode("UTF-8")).hexdigest()
+
+
+def sub_run(*args, **kwargs):
+	sys.stdout.flush()
+	sys.stderr.flush()
+	return subprocess.run(*args, **kwargs)
 
 
 def package_resolve(package, pkg_version=None, project=False):
@@ -84,7 +91,7 @@ def get_all_tags(pkg_url, branches=False, tags=True, allow_empty=False, allow_er
 		return []  # Nothing to check for
 	ls_args.append(pkg_url)
 
-	ls_res = subprocess.run(ls_args, check=not allow_error, stdout=subprocess.PIPE, encoding="UTF-8")
+	ls_res = sub_run(ls_args, check=not allow_error, stdout=subprocess.PIPE, encoding="UTF-8")
 	ref_pattern = re.compile(r'[a-fA-F0-9]+\s+refs\/(?:tags|heads)\/([^\s]+)')
 	tags = []
 	for match in re.finditer(ref_pattern, ls_res.stdout):
@@ -113,11 +120,11 @@ def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
 		needs_ro = False
 		if path.isdir(path.join(cache_dir, ".git")):
 			if pull and not path.exists(path.join(cache_dir, ".qdep_static_branch")):
-				subprocess.run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--recurse-submodules"], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
+				sub_run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--recurse-submodules"], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
 				needs_ro = True
 		elif clone:
-			subprocess.run(["git", "clone", "--recurse-submodules", "--shallow-submodules", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
-			head_ref_res = subprocess.run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+			sub_run(["git", "clone", "--recurse-submodules", "--shallow-submodules", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
+			head_ref_res = sub_run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 			if head_ref_res.returncode != 0:
 				open(path.join(cache_dir, ".qdep_static_branch"), 'a').close()
 			needs_ro = True
@@ -147,20 +154,18 @@ def eval_pro_file(pro_file, qmake, make, full_eval=False):
 	with tempfile.TemporaryDirectory() as tmp_dir:
 		if full_eval:
 			print("Running {} on {}...".format(qmake, pro_file))
-			subprocess.run([qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+			sub_run([qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
 			print("Running {} qmake_all...".format(make))
-			subprocess.run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+			sub_run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
 			print("Done! qmake finished successfully, all qdep sources have been downloaded.")
 		else:
-			print("Evaluating pro file {}...".format(pro_file))
 			dump_name = path.join(tmp_dir, "qdep_dummy.pro")
 			with open(dump_name, "w") as dump_file:
 				dump_file.write("QDEP_DEPENDS = $$fromfile($$quote({}), QDEP_DEPENDS)\n".format(pro_file))
 				dump_file.write("!write_file($$PWD/qdep_depends.txt, QDEP_DEPENDS):error(\"write error\")\n")
-			subprocess.run([qmake, dump_name], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+			sub_run([qmake, dump_name], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
 			with open(path.join(tmp_dir, "qdep_depends.txt"), "r") as dep_file:
 				for line in dep_file.readlines():
 					packages.append(line.strip())
-			print("Done! Extracted {} dependencies".format(len(packages)))
 
 	return packages

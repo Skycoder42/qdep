@@ -1,5 +1,3 @@
-import sys
-
 from qdep.internal.common import *
 from qdep.internal.prf import *
 
@@ -11,7 +9,7 @@ def prfgen(script_path, qmake="qmake", data_dir=None):
 	if data_dir is not None:
 		prf_path = data_dir
 	else:
-		qmake_res = subprocess.run([qmake, "-query", "QT_HOST_DATA"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+		qmake_res = sub_run([qmake, "-query", "QT_HOST_DATA"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
 		prf_path = str(qmake_res.stdout).strip()
 	prf_path = path.join(prf_path, "mkspecs", "features", "qdep.prf")
 	print("Generating PRF-File as: ", prf_path)
@@ -30,7 +28,7 @@ def prfgen(script_path, qmake="qmake", data_dir=None):
 
 def init(profile):
 	with open(profile, "a") as pro_file:
-		pro_file.write("\nQDEP_DEPENDS = \n\n")
+		pro_file.write("\nQDEP_DEPENDS += \n\n")
 		pro_file.write("!load(qdep):error(\"Failed to load qdep feature! Run 'qdep.py prfgen --qmake $$QMAKE_QMAKE' to create it.\")\n")
 
 
@@ -38,14 +36,14 @@ def lupdate(pri_path, qmake="qmake", lupdate_args=None):
 	if lupdate_args is None:
 		lupdate_args = []
 
-	qmake_res = subprocess.run([qmake, "-query", "QT_HOST_BINS"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
+	qmake_res = sub_run([qmake, "-query", "QT_HOST_BINS"], check=True, stdout=subprocess.PIPE, encoding="UTF-8")
 	lupdate_path = path.join(str(qmake_res.stdout).strip(), "lupdate")
 	with tempfile.TemporaryDirectory() as tmp_dir:
 		tmp_pro_path = path.join(tmp_dir, "lupdate.pro")
 		with open(tmp_pro_path, "w") as tmp_file:
 			tmp_file.write("include({})\n".format(pri_path))
 			tmp_file.write("TRANSLATIONS = $$QDEP_TRANSLATIONS\n")
-		subprocess.run([lupdate_path] + lupdate_args + [tmp_pro_path], check=True)
+		sub_run([lupdate_path] + lupdate_args + [tmp_pro_path], check=True)
 
 
 def clear(no_confirm=False):
@@ -150,7 +148,6 @@ def query(package, check=True, print_versions=False, expand=False):
 
 
 def get(*targets, extract=False, evaluate=False, recurse=True, qmake="qmake", make="make", cache_dir=None):
-	print(targets)
 	if cache_dir is not None:
 		os.environ["QDEP_CACHE_DIR"] = cache_dir
 
@@ -160,22 +157,37 @@ def get(*targets, extract=False, evaluate=False, recurse=True, qmake="qmake", ma
 		for pro_file in targets:
 			with tempfile.TemporaryDirectory() as tmp_dir:
 				print("Running {} on {}...".format(qmake, pro_file))
-				subprocess.run([qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+				sub_run([qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
 				print("Running {} qmake_all...".format(make))
-				subprocess.run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+				sub_run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
 				print("Done! qmake finished successfully, all qdep sources for the project tree have been downloaded.")
 		return
 	elif extract:
 		packages = []
 		for pro_file in targets:
+			print("Extracting dependencies from {}...".format(pro_file))
 			packages = packages + eval_pro_file(pro_file, qmake, make, full_eval=False)
 	else:
-		packages = targets
+		packages = list(targets)
 
 	# download the actual sources
-	print("Downloading {} packages total".format(len(packages)))
+	print("Found {} initial packages".format(len(packages)))
+	pkg_hashes = set()
 	for package in packages:
+		pkg_url, pkg_version, pkg_path = package_resolve(package)
+		p_hash = pkg_hash(pkg_url, pkg_path)
+		if p_hash in pkg_hashes:
+			continue
+
 		print("Downloading sources for {}...".format(package))
-		pkg_url, pkg_version, _p = package_resolve(package)
-		get_sources(pkg_url, pkg_version)
-		print("Done!")
+		cache_dir, _b = get_sources(pkg_url, pkg_version)
+
+		if recurse:
+			print("Extracting dependencies from {}...".format(package))
+			new_packages = eval_pro_file(path.join(cache_dir, pkg_path[1:]), qmake, make, full_eval=False)
+			print("Found {} dependent packages".format(len(new_packages)))
+			for pkg in new_packages:
+				packages.append(pkg)
+
+		pkg_hashes.add(p_hash)
+	print("Done!")

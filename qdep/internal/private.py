@@ -1,5 +1,3 @@
-import sys
-
 from qdep.internal.common import *
 
 
@@ -111,7 +109,7 @@ def lconvert(tsfile, outfile, *combine_files, lconvert_args=None):
 	combine_list.append(tsfile)
 
 	# run lconvert
-	subprocess.run(lconvert_args + ["-if", "ts", "-i"] + combine_list + ["-of", "ts", "-o", outfile], check=True)
+	sub_run(lconvert_args + ["-if", "ts", "-i"] + combine_list + ["-of", "ts", "-o", outfile], check=True)
 
 
 def prolink(prodir, pkghash, pkgpath, link=None):
