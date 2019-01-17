@@ -155,18 +155,14 @@ def get(*targets, extract=False, evaluate=False, recurse=True, qmake="qmake", ma
 	if evaluate:
 		# special case: since we only download sources, a simple qmake run is enough, no actual "evaluation" needed
 		for pro_file in targets:
-			with tempfile.TemporaryDirectory() as tmp_dir:
-				print("Running {} on {}...".format(qmake, pro_file))
-				sub_run([qmake, pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
-				print("Running {} qmake_all...".format(make))
-				sub_run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
-				print("Done! qmake finished successfully, all qdep sources for the project tree have been downloaded.")
+			eval_pro_depends(pro_file, qmake, make)
+			print("Done! qmake finished successfully, all qdep sources for the project tree have been downloaded.")
 		return
 	elif extract:
 		packages = []
 		for pro_file in targets:
 			print("Extracting dependencies from {}...".format(pro_file))
-			packages = packages + extract_pro_depends(pro_file, qmake, make)
+			packages = packages + extract_pro_depends(pro_file, qmake)
 	else:
 		packages = list(targets)
 
@@ -184,7 +180,7 @@ def get(*targets, extract=False, evaluate=False, recurse=True, qmake="qmake", ma
 
 		if recurse:
 			print("Extracting dependencies from {}...".format(package))
-			new_packages = extract_pro_depends(path.join(cache_dir, pkg_path[1:]), qmake, make)
+			new_packages = extract_pro_depends(path.join(cache_dir, pkg_path[1:]), qmake)
 			print("Found {} dependent packages".format(len(new_packages)))
 			for pkg in new_packages:
 				packages.append(pkg)
@@ -195,45 +191,19 @@ def get(*targets, extract=False, evaluate=False, recurse=True, qmake="qmake", ma
 
 def update(pro_file, evaluate=False, replace=False, qmake="qmake", make="make"):
 	if evaluate:
-		raise NotImplementedError()
+		all_deps = invert_map(eval_pro_depends(pro_file, qmake, make, dump_depends=True))
+		pkg_all, pkg_new = check_for_updates(all_deps.keys())
+		update_files = set()
+		for old_pkg, new_pkg in pkg_new.items():
+			for dep in all_deps[old_pkg]:
+				update_files.add(dep)
+			all_deps[new_pkg] = (all_deps[new_pkg] if new_pkg in all_deps else []) + all_deps[old_pkg]
+			all_deps.pop(old_pkg)
+		all_deps = invert_map(all_deps)
+		for upd_file in update_files:
+			replace_or_print_update(upd_file, all_deps[upd_file], pkg_new, replace)
 	else:
-		# evalute the pro file to extract the dependencies
 		print("Extracting dependencies from {}...".format(pro_file))
-		packages = extract_pro_depends(pro_file, qmake, make)
-
-		pkg_all = []
-		pkg_new = {}
-		for package in packages:
-			pkg_url, pkg_version, _p = package_resolve(package)
-			if pkg_version is None:
-				pkg_all.append(package)
-				continue
-
-			# check if the package actually has any tags
-			all_tags = get_all_tags(pkg_url, allow_empty=True)
-			if len(all_tags) == 0:
-				pkg_all.append(package)
-				continue
-
-			# check if actually a tag and not a branch
-			if pkg_version not in all_tags and pkg_version in get_all_tags(pkg_url, branches=True, tags=False, allow_empty=True):
-				pkg_all.append(package)
-				continue
-
-			# check if latest tag has changed
-			if all_tags[-1] != pkg_version:
-				pkg_name, _v, pkg_path = package_resolve(package, expand=False)
-				print("Found a new version for package {}: {} -> {}".format(pkg_name, pkg_version, all_tags[-1]))
-				new_pkg = "{}@{}{}".format(pkg_name, all_tags[-1], pkg_path)
-				pkg_all.append(new_pkg)
-				pkg_new[package] = new_pkg
-			else:
-				pkg_all.append(package)
-
-		if replace:
-			replace_pro_depends(pro_file, pkg_new)
-			print("Updated dependencies in {} - please check if the file has not been corrupted!".format(pro_file))
-		else:
-			print("")
-			print("QDEP_DEPENDS =", format(" \\\n\t".join(pkg_all)))
-			print("")
+		packages = extract_pro_depends(pro_file, qmake)
+		pkg_all, pkg_new = check_for_updates(packages)
+		replace_or_print_update(pro_file, pkg_all, pkg_new, replace)

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 from os import path
+from collections import OrderedDict
 
 import appdirs
 from lockfile import LockFile
@@ -153,14 +154,17 @@ def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
 	return cache_dir, pkg_branch
 
 
-def extract_pro_depends(pro_file, qmake, make):
+def extract_pro_depends(pro_file, qmake):
 	packages = []
 
 	with tempfile.TemporaryDirectory() as tmp_dir:
 		dump_name = path.join(tmp_dir, "qdep_dummy.pro")
 		with open(dump_name, "w") as dump_file:
-			dump_file.write("QDEP_DEPENDS = $$fromfile($$quote({}), QDEP_DEPENDS)\n".format(pro_file))
-			dump_file.write("!write_file($$PWD/qdep_depends.txt, QDEP_DEPENDS):error(\"write error\")\n")
+			dump_file.write("depends += $$fromfile($$quote({}), QDEP_DEPENDS)\n".format(pro_file))
+			dump_file.write("depends += $$fromfile($$quote({}), QDEP_PROJECT_SUBDIRS)\n".format(pro_file))
+			dump_file.write("depends += $$fromfile($$quote({}), QDEP_PROJECT_LINK_DEPENDS)\n".format(pro_file))
+			dump_file.write("depends += $$fromfile($$quote({}), QDEP_PROJECT_DEPENDS)\n".format(pro_file))
+			dump_file.write("!write_file($$PWD/qdep_depends.txt, depends):error(\"write error\")\n")
 		sub_run([qmake, dump_name], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
 		with open(path.join(tmp_dir, "qdep_depends.txt"), "r") as dep_file:
 			for line in dep_file.readlines():
@@ -169,13 +173,86 @@ def extract_pro_depends(pro_file, qmake, make):
 	return packages
 
 
-def replace_pro_depends(pro_file, replacements):
-	with open(pro_file, "r") as in_file:
-		with open(pro_file + ".qdepnew", "w") as out_file:
-			for line in in_file:
-				for src, repl in replacements.items():
-					line = line.replace(src, repl)
-				out_file.write(line)
+def eval_pro_depends(pro_file, qmake, make, dump_depends=False):
+	with tempfile.TemporaryDirectory() as tmp_dir:
+		print("Running {} on {}...".format(qmake, pro_file))
+		sub_run([qmake] + (["CONFIG+=__qdep_dump_dependencies"] if dump_depends else []) + [pro_file], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
+		print("Running {} qmake_all...".format(make))
+		sub_run([make, "qmake_all"], cwd=tmp_dir, check=True, stdout=subprocess.DEVNULL)
 
-	os.remove(pro_file)
-	os.rename(pro_file + ".qdepnew", pro_file)
+		if dump_depends:
+			all_deps = {}
+			for root, dirs, files in os.walk(tmp_dir, topdown=True):
+				for file in files:
+					if file == "qdep_depends.txt":
+						with open(path.join(root, file), "r") as dep_list:
+							dep_name = dep_list.readline().strip()
+							all_deps[dep_name] = []
+							for dep in dep_list:
+								all_deps[dep_name].append(dep.strip())
+
+			return all_deps
+		else:
+			return None
+
+
+def invert_map(original):
+	inverted = OrderedDict()
+	for key, values in original.items():
+		for value in values:
+			if value not in inverted:
+				inverted[value] = [key]
+			else:
+				inverted[value].append(key)
+	return inverted
+
+
+def check_for_updates(packages):
+	pkg_all = []
+	pkg_new = {}
+	for package in packages:
+		pkg_url, pkg_version, _p = package_resolve(package)
+		if pkg_version is None:
+			pkg_all.append(package)
+			continue
+
+		# check if the package actually has any tags
+		all_tags = get_all_tags(pkg_url, allow_empty=True)
+		if len(all_tags) == 0:
+			pkg_all.append(package)
+			continue
+
+		# check if actually a tag and not a branch
+		if pkg_version not in all_tags and pkg_version in get_all_tags(pkg_url, branches=True, tags=False, allow_empty=True):
+			pkg_all.append(package)
+			continue
+
+		# check if latest tag has changed
+		if all_tags[-1] != pkg_version:
+			pkg_name, _v, pkg_path = package_resolve(package, expand=False)
+			print("Found a new version for package {}: {} -> {}".format(pkg_name, pkg_version, all_tags[-1]))
+			new_pkg = "{}@{}{}".format(pkg_name, all_tags[-1], pkg_path)
+			pkg_all.append(new_pkg)
+			pkg_new[package] = new_pkg
+		else:
+			pkg_all.append(package)
+
+	return pkg_all, pkg_new
+
+
+def replace_or_print_update(pro_file, pkg_all, pkg_new, replace):
+	if replace:
+		with open(pro_file, "r") as in_file:
+			with open(pro_file + ".qdepnew", "w") as out_file:
+				for line in in_file:
+					for src, repl in pkg_new.items():
+						line = line.replace(src, repl)
+					out_file.write(line)
+
+		os.remove(pro_file)
+		os.rename(pro_file + ".qdepnew", pro_file)
+		print("Updated dependencies in {} - please check if the file has not been corrupted!".format(pro_file))
+	else:
+		print("")
+		print("Dependencies for {}:".format(pro_file))
+		print("QDEP_DEPENDS =", format(" \\\n\t".join(pkg_all)))

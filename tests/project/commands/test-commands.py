@@ -233,17 +233,15 @@ def test_update():
 		else:
 			return None
 
-	exec_qdep("update", "--help")
-
 	with open("normal.pro", "w") as pro_file:
 		pro_file.write("QDEP_DEPENDS += Skycoder42/qpmx-sample-package@1.0.0/qpmx-sample-package.prc\n")
 		pro_file.write("QDEP_DEPENDS += Skycoder42/qpmx-sample-package\n")
 		pro_file.write("QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri\n\n")
 	exec_qdep("init", os.path.abspath("normal.pro"))
 	u_res = u_run(os.path.abspath("normal.pro"), strip_eval=True)
-	assert len(u_res) == 6
+	assert len(u_res) == 7
 	assert u_res[1] == "Found a new version for package Skycoder42/qpmx-sample-package: 1.0.0 -> 1.2.0"
-	assert u_res[3:] == [
+	assert u_res[4:] == [
 		"QDEP_DEPENDS = Skycoder42/qpmx-sample-package@1.2.0/qpmx-sample-package.prc \\",
 		"Skycoder42/qpmx-sample-package \\",
 		"Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri"
@@ -260,6 +258,8 @@ def test_update():
 		"Skycoder42/qpmx-sample-package\n",
 		"Skycoder42/qdep@master/tests/packages/basic/package1/package1.pri\n"
 	]
+
+	u_run("--eval", os.path.abspath("normal.pro"))
 
 
 def test_clear():  # TODO implement later

@@ -340,6 +340,22 @@ defineReplace(qdepResolveLinkRoot) {
 	return()
 }
 
+# dump dependencies for update collection
+defineTest(qdepDumpUpdateDeps) {
+	dump_data = $$_PRO_FILE_
+	dump_data += $$QDEP_DEPENDS
+	dump_data += $$QDEP_PROJECT_SUBDIRS
+	dump_data += $$QDEP_PROJECT_LINK_DEPENDS
+	dump_data += $$QDEP_PROJECT_DEPENDS
+	write_file($$OUT_PWD/qdep_depends.txt, dump_data):return(true)
+	else:return(false)
+}
+
+# dump deps if in update mode
+__qdep_dump_dependencies: \\
+	!qdepDumpUpdateDeps(): \\
+	error("Failed to dump dependencies")
+
 # First transform project link depends to normal link depends
 !isEmpty(QDEP_PROJECT_ROOT): \\
 	!isEmpty(QDEP_PROJECT_LINK_DEPENDS): \\
