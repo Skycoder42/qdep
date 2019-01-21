@@ -50,19 +50,42 @@ qdep prfgen --qmake "C:\Qt\5.12.0\msvc2017_64\bin\qmake.exe"
 **Note:** Depending on how the corresponding Qt-Kit was installed, you might need to run the command with administrator/sudo permissions. Alternatively, you can call the command with `--dir /some/path` and export that very same path as value to the `QMAKEPATH` environment variable, if you have no such permissions.
 
 ## Getting started
+The basic usage of qdep is very simple. For this example, we assume you want to add for example [QHotkey](https://github.com/Skycoder42/QHotkey) to a project via qdep. All you have to do is to install (and prepare) qdep and then add the following two lines to your pro-file:
+
+```
+QDEP_DEPENDS += Skycoder42/QHotkey
+!load(qdep):error("Failed to load qdep feature")
+```
+
+Thats it! The next time you run qmake qdep will automatically download the latest release and add them to your project. Just compile the project and you can use the library. A more explicit way to specify the package (and what that shorter string extends to) would be `https://github.com/Skycoder42/QHotkey.git@1.2.2/qhotkey.pri`
 
 ## Getting deeper
+Besides this basic functionality of referencing qdep packages, qdep offers a few additional things to make using (and developing) those easier. In the following sections, they will be explained in detail.
 
 ### Dependency IDs
+Qdep dependencies are described by IDs. These IDs follow the format `<url>[@<version>[/<path>]]`. The only relevant part is the URL, and it can either be implicit or explicit. Implicit URLs follow the format `<user>/<repository>` and are automatically expanded to `https://github.com/<user>/<repository>.git`. For the explicit format, all kinds of GIT-URLs are supportet, i.e. HTTPS, SSH and FILE urls.
+
+If you leave out the path part of a qdep package, qdep assumes that there is a pri file named `<repository_lower>.pri` in the repositories root directory. If that is not the case, or if a package has multiple different pri files to choose from, you can specify a path relative to the repositories root to that pri file to use that one instead of the automatically detected one.
+
 #### Versioning
-#### Multi-Packages
+Qdep supports 3 kinds of versioning: Unversioned, branches, tags. If you leave out the version, qdep will automatically query the corresponding repository and get the latest tag (by "creation") and use that one. If you do specify a version, it can either be a git tag or a git branch. In case of a tag, qdep will simply download it and assume it to be persistant, i.e. never check for updates on that specific tag. Referencing a branch however will lead to qdep "tracking" that branch, and before every build, qdep pulls on the branch to update if neccessary.
+
+Generelly speaking, it is recommended to use explicit tags. Implicit versioning is fine, too, but updates to packages might break your builds at times you do not want them to. Branch versioning is always dangerous and should only be used on explicitly stable branches or for package delevopment.
+
+#### Package-uniqueness and version conflicts
+When working with recursive package dependencies, it can sometimes happen that two different packages include different versions of the same package. qdep circumvents this issue by making shure only a single version of each package is ever included. The first version this is referenced is the one that is choosen. Explicit package paths however are not considered the same package, i.e. it is possible to include two different pri files from the same git repository. Generelly speaking, a packages unique identifier is determined by its `<url>` and its `<path>` - both case insensitive.
 
 ### Normal dependencies
+Normal dependencies, aka pri-dependencies specified via `QDEP_DEPENDS` are the primary dependency type of qdep. They are typically resolve to a simple pri files, that is included into your project by qdep. You can do anything in these pri files you would also in a "normal" pri file. However, there are a few extra things that become possible when including qdep dependencies.
+
 #### Translations
+The first feature is extended support for translations. Qdep packages can come with translation source files for their own sources. These are typically exported via the `QDEP_TRANSLATIONS` qmake variable. When creating your own translations, qdep will automatically merge these with your own translations at build time. This however onyl works if you make use of the `lrelease` qmake feature, provided by qt. See [QMake TRANSLATIONS](https://doc.qt.io/qt-5/qmake-variable-reference.html#translations) and [QMake QM_FILES_INSTALL_PAT](https://doc.qt.io/qt-5/qmake-variable-reference.html#qm-files-install-path) for more details.
+
 #### Library support
+#### Creating normal dependencies
+##### Creating qdep translations
 ##### Resources and hooks
 ##### Automatic exports
-#### Creating normal dependencies
 
 ### Project dependencies
 #### Inclusion via SUBDIRS

@@ -38,7 +38,7 @@ def get_override_map():
 
 
 def pkg_hash(pkg_url, pkg_path):
-	return "__QDEP_PKG_" + hashlib.sha3_256((pkg_url + pkg_path).encode("UTF-8")).hexdigest()
+	return "__QDEP_PKG_" + hashlib.sha3_256((pkg_url + pkg_path).lower().encode("UTF-8")).hexdigest()
 
 
 def sub_run(*args, **kwargs):
@@ -80,7 +80,7 @@ def package_resolve(package, pkg_version=None, project=False, expand=True):
 	elif not expand:
 		pkg_path = ""
 	else:
-		pkg_path = "/" + re.match(path_pattern, pkg_url).group(1) + (".pro" if project else ".pri")
+		pkg_path = "/" + re.match(path_pattern, pkg_url).group(1).lower() + (".pro" if project else ".pri")
 
 	return pkg_url, pkg_branch, pkg_path
 
