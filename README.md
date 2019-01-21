@@ -1,9 +1,53 @@
 # qdep
-A very basic yet simple to use dependency management tool for qmake based projects
+A very basic yet simple to use dependency management tool for qmake based projects.
+
+[![Travis Build Status](https://travis-ci.org/Skycoder42/qdep.svg?branch=master)](https://travis-ci.org/Skycoder42/qdep)
+[![Appveyor Build status](https://ci.appveyor.com/api/projects/status/s222vatjpd4ic70w/branch/master?svg=true)](https://ci.appveyor.com/project/Skycoder42/qdep/branch/master)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/373a21f05f8847c29ce08739891631e8)](https://www.codacy.com/app/Skycoder42/qdep)
+[![AUR](https://img.shields.io/aur/version/qdep.svg)](https://aur.archlinux.org/packages/qdep/)
 
 ## Features
+- Seamless integration in qmake projects - no extra files needed
+- Basic dependency management using git repositories as package sources
+- Globally caches source files to speed up builds
+- Packages are simple pri-files that are included by the target project
+- Recursive dependency solving
+- Allows branch and tag based versioning
+- Supports translations for qdep packages
+- Supports automatic export of qdep packages from dynamic libraries
+- Handles QRC-Resources and startup hooks to work even when used in static libraries
+- Supports special "Project dependencies" wich allows you to add whole qmake projects to a SUBDIRS project
+- Can generate "library export" pri files that provide an easy and reliable way to link against libraries
+	- Implicitly supports exported qdep packages and projects
+
+## Design Goals/Scope
+qdep was designed with the following goals in mind:
+
+1. Full qmake integration: qdep should not require any extra commands to install packages and prepare a project to be built. Just running qmake on the target project should take care of this
+2. Simple installation: Using python makes it easy to use the tool on any platform. Besides the install only a single setup command is needed to make qdep work for any Qt installation
+3. Full Qt support: All features of Qt - including resources, startup hooks and translations should be supported with minimal effort for application developers
+4. Library exports: Since all qdep packages are source based, having multiple libraries that use the same package can be problematic. With qdep, one can "export" a package from a library, making it available to all the others.
+5. No additional server infrastructure: qdep should not require any extra servers to provide a package index. Any git repository can server as a package without any extra preparations needed
+
+Please note that qdep is kept intentionally small to fullfill exactly those goals. Other build systems or more complex package management features are not supported and never will be. This project will stay active until the Qt Company switches their build systems to CMake. At that point this project will either be dropped or ported to CMake, depending on what alternative solutions already exist at that point.
 
 ## Installation
+To install the package, follow one of the following possibilities. Please note that only Python >= 3.7 is officially supported. Earlier versions might work as well, but have not been tested.
+
+1. **Arch Linux:** Use the AUR-Package: [qdep](https://aur.archlinux.org/packages/qdep/)
+2. **Any Platform:** Install via pip: [`pip install qdep`](https://pypi.org/project/qdep/)
+3. **Any Platform:** Clone the repository and install the sources directly: `python setup.py install`
+
+After installing, you have to "enable" qdep for each Qt-Kit you want to use qdep with. This can be done by opening a terminal and calling:
+```
+qdep prfgen --qmake "</path/to/qmake>"
+```
+For example, if you have installed Qt 5.12.0 for MSVC 2017 x64 on windows in the default location (`C:\Qt`), the command would look like this:
+```
+qdep prfgen --qmake "C:\Qt\5.12.0\msvc2017_64\bin\qmake.exe"
+```
+
+**Note:** Depending on how the corresponding Qt-Kit was installed, you might need to run the command with administrator/sudo permissions. Alternatively, you can call the command with `--dir /some/path` and export that very same path as value to the `QMAKEPATH` environment variable, if you have no such permissions.
 
 ## Getting started
 

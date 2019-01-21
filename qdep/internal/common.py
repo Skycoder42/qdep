@@ -251,7 +251,7 @@ def replace_or_print_update(pro_file, pkg_all, pkg_new, replace):
 
 		os.remove(pro_file)
 		os.rename(pro_file + ".qdepnew", pro_file)
-		print("Updated dependencies in {} - please check if the file has not been corrupted!".format(pro_file))
+		print("Updated dependencies in {} - please check the file to make sure it has not been corrupted!".format(pro_file))
 	else:
 		print("")
 		print("Dependencies for {}:".format(pro_file))
