@@ -38,12 +38,12 @@ To install the package, follow one of the following possibilities. Please note t
 2. **Any Platform:** Install via pip: [`pip install qdep`](https://pypi.org/project/qdep/)
 3. **Any Platform:** Clone the repository and install the sources directly: `python setup.py install`
 
-After installing, you have to "enable" qdep for each Qt-Kit you want to use qdep with. This can be done by opening a terminal and calling:
-```
+After installing (except when using the AUR-package), you have to "enable" qdep for each Qt-Kit you want to use qdep with. This can be done by opening a terminal and calling:
+```bash
 qdep prfgen --qmake "</path/to/qmake>"
 ```
 For example, if you have installed Qt 5.12.0 for MSVC 2017 x64 on windows in the default location (`C:\Qt`), the command would look like this:
-```
+```bash
 qdep prfgen --qmake "C:\Qt\5.12.0\msvc2017_64\bin\qmake.exe"
 ```
 
@@ -52,7 +52,7 @@ qdep prfgen --qmake "C:\Qt\5.12.0\msvc2017_64\bin\qmake.exe"
 ## Getting started
 The basic usage of qdep is very simple. For this example, we assume you want to add for example [QHotkey](https://github.com/Skycoder42/QHotkey) to a project via qdep. All you have to do is to install (and prepare) qdep and then add the following two lines to your pro-file:
 
-```
+```qmake
 QDEP_DEPENDS += Skycoder42/QHotkey
 !load(qdep):error("Failed to load qdep feature")
 ```
@@ -82,10 +82,115 @@ Normal dependencies, aka pri-dependencies specified via `QDEP_DEPENDS` are the p
 The first feature is extended support for translations. Qdep packages can come with translation source files for their own sources. These are typically exported via the `QDEP_TRANSLATIONS` qmake variable. When creating your own translations, qdep will automatically merge these with your own translations at build time. This however onyl works if you make use of the `lrelease` qmake feature, provided by qt. See [QMake TRANSLATIONS](https://doc.qt.io/qt-5/qmake-variable-reference.html#translations) and [QMake QM_FILES_INSTALL_PAT](https://doc.qt.io/qt-5/qmake-variable-reference.html#qm-files-install-path) for more details.
 
 #### Library support
+When using qdep in static or dynamic libraries, there are often special steps needed to make that fully work. However, qdep takes care of those steps and performs them for you. The only thing you need to do is enable library exports from your library and then import that export from your primary project. For example, assuimg you have the following project structure:
+```
+root
+ |-library
+ |-app
+```
+And you have a library that depends on QHotkey. If you want to use this library from app, you would create the library pro file as follows:
+```qmake
+TEMPLATE = lib
+CONFIG += static  # dynamic libraries are also possible, but dependencies must support exporting for them to work on windows
+
+# ...
+
+QDEP_DEPENDS += Skycoder42/QHotkey
+QDEP_EXPORTS += Skycoder42/QHotkey
+CONFIG += qdep_link_export
+!load(qdep):error("Failed to load qdep feature")
+```
+And then reference the library in the app pro file. This also takes care of linking the library to the app, so no additional `INCLUDEPATH` or `LIBS` changes are needed:
+```qmake
+TEMPLATE = app
+
+# ...
+
+QDEP_LINK_DEPENDS += ../library
+!load(qdep):error("Failed to load qdep feature")
+```
+And thats it! You can now use the QHotkey in the library and the app project without any additional work, as qdep will reference the QHotkey that is now embedded into the library project. 
+
+**Note:** This will also work for dynamic librabries, but only if the *explicitly* support qdep package exporting. If not, linking will fail at least on windows, and possibly on other platforms as well.
+
 #### Creating normal dependencies
+This section is intended for developers that want to create their own qdep packages. Generally speaking, there is not much you need to do different from creating normal pri includes. However, there are a few small things in qdep you can use to your advantage to create better packages. They are described in the following sub sections and are:
+
+- Translation generation
+- Resources and startup hooks
+- automatic exports
+
 ##### Creating qdep translations
+The only difference when creating translations with qdep is where you put them. Instead of TRANSLATIONS, create a qmake variable called QDEP_TRANSLATIONS and add all the ts files you want to generate to it. Next, call the following command to actually generate the ts-files based on your pri file:
+```bash
+qdep lupdate --qmake "</path/to/qmake>" --pri-file "</path/to/project.pri>" [-- <extra lupdate arguments>...]
+```
+And thats it. You should now be able to find the generated TS-files where you wanted them to be as specified in the pri file.
+
+When creating packages that should work with and without qdep, you can add the following to your pri file to still make these translations available if the package is included without qdep:
+```qmake
+!qdep_build: EXTRA_TRANSLATIONS += $$QDEP_TRANSLATIONS
+```
+
 ##### Resources and hooks
+One thing that can be problematic, especially when working with static libraries, is the use of RESOURCES and startup hooks. To make it work, qdep automatically generates code to load them. For resources, there is nothing special you need to do as package developer.
+
+For hooks however, thats a different story. Assuming you have the following function you want to be run as `Q_COREAPP_STARTUP_FUNCTION`:
+```cpp
+void my_package_startup_hook()
+{
+    doStuff();
+}
+```
+You will have to add the following line to your qdep pri file to make shure this hook actually gets called:
+```pro
+QDEP_HOOK_FNS += my_package_startup_hook
+```
+And with that, qdep will automatically generate the code needed to call this method as `Q_COREAPP_STARTUP_FUNCTION`.
+
+When creating packages that should work with and without qdep, you can add the following to the cpp file that contains the hook function to make it work for non-static projects, even if the package is included without qdep:
+```cpp
+#ifndef QDEP_BUILD
+#include <QCoreApplication>
+Q_COREAPP_STARTUP_FUNCTION(my_package_startup_hook)
+#endif
+```
+
 ##### Automatic exports
+Another very useful tool are automatic package exports. This allows qdep to automatically export a qdep package from a dynamic library, so other applications that link to that library can use the exported qdep packages API. This is basically equivalent to the following:
+
+```cpp
+#ifdef BUILD_PACKAGE_AS_LIBRARY
+	#ifdef IS_DLL_BUILD
+		#define MY_PACKAGE_EXPORT Q_DECL_EXPORT
+	#else
+		#define MY_PACKAGE_EXPORT Q_DECL_IMPORT
+	#endif
+#else
+	#define MY_PACKAGE_EXPORT
+#endif
+
+class MY_PACKAGE_EXPORT MyClass {
+	// ...
+};
+```
+
+qdep basically automates the define part, so you don't have to care about correctly defining all those macros and your code can be reduced to:
+```cpp
+class MY_PACKAGE_EXPORT MyClass {
+	// ...
+};
+```
+To make it work, simply add the following to your pri file:
+```qmake
+QDEP_PACKAGE_EXPORTS += MY_PACKAGE_EXPORT
+```
+And thats it! When using the package normally, qdep will automatically add an empty define that defines MY_PACKAGE_EXPORT to nothing. When building a dynamic library and the end user wants to export the package, it gets defined as Q_DECL_EXPORT (and Q_DECL_IMPORT for consuming applications).
+
+When creating packages that should work with and without qdep, you can add the following to the pri file to manually define the macro to nothing, even if the package is included without qdep:
+```qmake
+!qdep_build: DEFINES += "MY_PACKAGE_EXPORT="
+```
 
 ### Project dependencies
 #### Inclusion via SUBDIRS
@@ -106,6 +211,7 @@ The first feature is extended support for translations. Qdep packages can come w
  QDEP_GENERATED_DIR         | in        | `$$OUT_PWD`                   | The sub-directory in the build folder where qdep should place all it's generated files. Can be an absolute or relative path
  QDEP_EXPORT_PATH           | in        | `$$QDEP_GENERATED_DIR/<type>` | The directory where to place export pri files for libraries that export dependencies. Can be relative to OUT_PWD or absolute. Use QDEP_EXPORT_NAME to get the name of that file without a path
  QDEP_DEPENDS               | in        | `<empty>`                     | Specify all dependencies to qdep packages to be included into your project
+ QDEP_LINK_DEPENDS          | in        | `<empty>`                     | Reference other projects in the same build tree that this project should link against. Those projects must be exporting a pri file
  QDEP_PROJECT_SUBDIRS       | in        | `<empty>`                     | Specify all dependencies to qdep projects to be added as qmake project to the SUBDIRS variable. Only evaluted in projects that specify TEMPLATE as `subdirs`
  QDEP_PROJECT_ROOT          | in        | `<empty>`                     | The path to a project qmake project directory or file to resolve QDEP_PROJECT_LINK_DEPENDS against
  QDEP_PROJECT_LINK_DEPENDS  | in        | `<empty>`                     | Sepcify all dependencies to qdep projects this project should be linked against. The dependencies are assumed to be provided in that project via QDEP_PROJECT_SUBDIRS. 
@@ -147,6 +253,9 @@ The first feature is extended support for translations. Qdep packages can come w
 
 ##### Output values
 - `qdep_build`: Is set in case the qdep features was loaded correctly and is enabled
+
+##### Defines
+- `QDEP_BUILD`: Is defined in case the qdep features was loaded correctly and is enabled
 
 #### Environment variables
 - `QDEP_CACHE_DIR`: The directory where to cache downloaded sources. Is automatically determined for every system but can be overwritten with this variable
