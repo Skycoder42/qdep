@@ -5,6 +5,7 @@ A very basic yet simple to use dependency management tool for qmake based projec
 [![Appveyor Build status](https://ci.appveyor.com/api/projects/status/s222vatjpd4ic70w/branch/master?svg=true)](https://ci.appveyor.com/project/Skycoder42/qdep/branch/master)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/373a21f05f8847c29ce08739891631e8)](https://www.codacy.com/app/Skycoder42/qdep)
 [![AUR](https://img.shields.io/aur/version/qdep.svg)](https://aur.archlinux.org/packages/qdep/)
+[![PyPi](https://img.shields.io/pypi/v/qdep.svg)](https://pypi.org/project/qdep/)
 
 ## Features
 - Seamless integration in qmake projects - no extra files needed
