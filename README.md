@@ -38,6 +38,7 @@ To install the package, follow one of the following possibilities. Please note t
 2. **Any Platform:** Install via pip: [`pip install qdep`](https://pypi.org/project/qdep/)
 3. **Any Platform:** Clone the repository and install the sources directly: `python setup.py install`
 
+### Preparing qmake
 After installing (except when using the AUR-package), you have to "enable" qdep for each Qt-Kit you want to use qdep with. This can be done by opening a terminal and calling:
 ```bash
 qdep prfgen --qmake "</path/to/qmake>"
@@ -48,6 +49,25 @@ qdep prfgen --qmake "C:\Qt\5.12.0\msvc2017_64\bin\qmake.exe"
 ```
 
 **Note:** Depending on how the corresponding Qt-Kit was installed, you might need to run the command with administrator/sudo permissions. Alternatively, you can call the command with `--dir /some/path` and export that very same path as value to the `QMAKEPATH` environment variable, if you have no such permissions.
+
+### Shell completitions
+For Unix systems, qdep makes use of [argcomplete](https://argcomplete.readthedocs.io/en/latest/) to provide completitions for bash/zsh to activate them, add the following code your shell initializer scripts:
+
+For **zsh**, add this to `~/.zshrc`:
+```bash
+autoload bashcompinit
+bashcompinit
+autoload compinit
+compinit
+eval "$(register-python-argcomplete qdep)"
+```
+
+For **bash**, add this to `~/.bashrc`:
+```
+eval "$(register-python-argcomplete qdep)"
+```
+
+When using BASH, you can alternatively use global completition - see [Activating global completion](https://argcomplete.readthedocs.io/en/latest/#activating-global-completion) for more details on that. Other shells might work as well, depending on how well argcomplete works with them. Refer to the argcomplete documentation and their GitHub Repository .
 
 ## Getting started
 The basic usage of qdep is very simple. For this example, we assume you want to add for example [QHotkey](https://github.com/Skycoder42/QHotkey) to a project via qdep. All you have to do is to install (and prepare) qdep and then add the following two lines to your pro-file:
