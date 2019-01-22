@@ -6,6 +6,67 @@ from qdep.qdep import *
 from qdep.internal.private import *
 
 
+def complete_path(prefix, filter_fn):
+	def map_dir_contents(base_dir, file):
+		full_path = path.join(base_dir, file)
+		if path.isdir(full_path):
+			return full_path + "/"
+		else:
+			return full_path
+
+	path_base, path_name = path.split(prefix)
+	if len(path_base) == 0:
+		path_base = "."
+	return map(lambda f: map_dir_contents(path_base, f), filter(lambda f: filter_fn(path_base, path_name, f), os.listdir(path_base)))
+
+
+def complete_executable(prefix, limiter=None):
+	def filter_dir_contents(base_dir, base_name, file):
+		if path.isdir(path.join(base_dir, file)):
+			return True
+		elif file.startswith(base_name) and (limiter is None or limiter in file):
+			return True
+		else:
+			return False
+
+	return complete_path(prefix, filter_dir_contents)
+
+
+def complete_suffix(prefix, suffix):
+	def filter_dir_contents(base_dir, base_name, file):
+		if path.isdir(path.join(base_dir, file)):
+			return True
+		elif file.startswith(base_name) and file.endswith(suffix):
+			return True
+		else:
+			return False
+
+	return complete_path(prefix, filter_dir_contents)
+
+
+def qmake_completer(prefix, **kwargs):
+	return complete_executable(prefix, "qmake")
+
+
+def make_completer(prefix, **kwargs):
+	return complete_executable(prefix, "make")
+
+
+def dir_completer(prefix, **kwargs):
+	def filter_dir_contents(base_dir, base_name, file):
+		return path.isdir(path.join(base_dir, file)) and file.startswith(base_name)
+
+	return complete_path(prefix, filter_dir_contents)
+
+
+def pro_completer(prefix, **kwargs):
+	return complete_suffix(prefix, ".pro")
+
+
+def pri_completer(prefix, **kwargs):
+	return complete_suffix(prefix, ".pri")
+
+
 def main():
 	parser = argparse.ArgumentParser(description="A very basic yet simple to use dependency management tool for qmake based projects.")
 	parser.add_argument("--version", action="version", version=version)
@@ -14,15 +75,15 @@ def main():
 	sub_args = parser.add_subparsers(dest="operation", title="Operations", metavar="{operation}")
 
 	prfgen_parser = sub_args.add_parser("prfgen", help="Generate a qmake project feature (prf) for the given qmake.")
-	prfgen_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for.")
-	prfgen_parser.add_argument("-d", "--dir", dest="dir", action="store", help="The directory containing the mkspec folder where to place the prf file. If not specified, qmake is queried form the location.")
+	prfgen_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to place the prf file for.").completer = qmake_completer
+	prfgen_parser.add_argument("-d", "--dir", dest="dir", action="store", help="The directory containing the mkspec folder where to place the prf file. If not specified, qmake is queried form the location.").completer = dir_completer
 
 	init_parser = sub_args.add_parser("init", help="Initialize a pro file to use qdep by adding the required lines.")
-	init_parser.add_argument("profile", help="The path to the pro file to add the qdep code to.")
+	init_parser.add_argument("profile", help="The path to the pro file to add the qdep code to.").completer = pro_completer
 
 	lupdate_parser = sub_args.add_parser("lupdate", help="Run lupdate for the QDEP_TRANSLATION variable in a given pri file.")
-	lupdate_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to find the corresponding lupdate for.")
-	lupdate_parser.add_argument("--pri-file", dest="pri_path", action="store", required=True, help="The path to the pri-file that contains a QDEP_TRANSLATIONS variable, to generate translations for.")
+	lupdate_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to find the corresponding lupdate for.").completer = qmake_completer
+	lupdate_parser.add_argument("--pri-file", dest="pri_path", action="store", required=True, help="The path to the pri-file that contains a QDEP_TRANSLATIONS variable, to generate translations for.").completer = pri_completer
 	lupdate_parser.add_argument("largs", action="store", nargs="*", metavar="lupdate-argument", help="Additionals arguments to be passed to lupdate. MUST be proceeded by '--'!")
 
 	clear_parser = sub_args.add_parser("clear", help="Remove all sources from the users global cache.")
@@ -45,17 +106,17 @@ def main():
 	get_parser.add_argument("--extract", action="store_true", help="Run in pro-file mode. Arguments are interpreted as pro files and are scanned for dependencies")
 	get_parser.add_argument("--eval", action="store_true", help="Fully evaluate all pro files by running qmake on them. Implies '--extract'.")
 	get_parser.add_argument("--no-recurse", dest="recurse", action="store_false", help="Do not scan downloaded packages for further dependencies.")
-	get_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to use for evaluation if '--eval' was specified.")
-	get_parser.add_argument("--make", action="store", default="make", help="The path to a make executable to use for evaluation if '--eval' was specified.")
-	get_parser.add_argument("-d", "--dir", "--cache-dir", dest="dir", action="store", help="Specify the directory where to download the sources to. Shorthand for using the QDEP_CACHE_DIR environment variable.")
-	get_parser.add_argument("args", nargs="+", help="The packages (or pro files if using '--extract') to download the sources for.")
+	get_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to use for evaluation if '--eval' was specified.").completer = qmake_completer
+	get_parser.add_argument("--make", action="store", default="make", help="The path to a make executable to use for evaluation if '--eval' was specified.").completer = make_completer
+	get_parser.add_argument("-d", "--dir", "--cache-dir", dest="dir", action="store", help="Specify the directory where to download the sources to. Shorthand for using the QDEP_CACHE_DIR environment variable.").completer = dir_completer
+	get_parser.add_argument("args", nargs="+", help="The packages (or pro files if using '--extract') to download the sources for.").completer = pro_completer
 
 	update_parser = sub_args.add_parser("update", help="Check for newer versions of used packages and optionally update them.")
 	update_parser.add_argument("--eval", action="store_true", help="Fully evaluate all pro files by running qmake on them.")
-	update_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to use for evaluation if '--eval' was specified.")
-	update_parser.add_argument("--make", action="store", default="make", help="The path to a make executable to use for evaluation if '--eval' was specified.")
+	update_parser.add_argument("--qmake", action="store", default="qmake", help="The path to a qmake executable to use for evaluation if '--eval' was specified.").completer = qmake_completer
+	update_parser.add_argument("--make", action="store", default="make", help="The path to a make executable to use for evaluation if '--eval' was specified.").completer = make_completer
 	update_parser.add_argument("--replace", action="store_true", help="Automatically replace newer packages in the evaluated project files instead of printing to the console.")
-	update_parser.add_argument("profile", metavar="pro-file", help="The qmake pro-file to update dependencies for.")
+	update_parser.add_argument("profile", metavar="pro-file", help="The qmake pro-file to update dependencies for.").completer = pro_completer
 
 	dephash_parser = sub_args.add_parser("dephash", help="[INTERNAL] Generated unique identifying hashes for qdep packages.")
 	dephash_parser.add_argument("--project", action="store_true", help="Interpret input as a project dependency, not a normal pri dependency.")
