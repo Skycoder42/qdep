@@ -84,9 +84,9 @@ The first feature is extended support for translations. Qdep packages can come w
 #### Library support
 When using qdep in static or dynamic libraries, there are often special steps needed to make that fully work. However, qdep takes care of those steps and performs them for you. The only thing you need to do is enable library exports from your library and then import that export from your primary project. For example, assuimg you have the following project structure:
 ```
-root
- |-library
- |-app
+root (subdirs)
+ |-library (lib)
+ |-app (app)
 ```
 And you have a library that depends on QHotkey. If you want to use this library from app, you would create the library pro file as follows:
 ```qmake
@@ -193,14 +193,88 @@ When creating packages that should work with and without qdep, you can add the f
 ```
 
 ### Project dependencies
-#### Inclusion via SUBDIRS
-#### Referencing project dependencies
+Another side of qdep besides normal pri dependencies are full project dependencies. In this scenario, you include a full qmake project into your tree as child of a SUBDIRS projects. This allows the use of qdep package export pri files to link to these projects without much effort. To make use of this feature, you have to use a subdirs project that references the pro dependency, as well as normal projects that link against it. One great advantage of using project dependencies is, that they can reference other project dependencies they depend on, which means even for full projects, qdep takes care of the recursive dependency resolving for you.
+
+To get started, assume the following project structure:
+```
+root (subdirs)
+  |--libs (subdirs)
+  |    |--lib (lib)
+  |--app (app)
+```
+Both lib and app are assumed to depend on a theoretical qdep project dependency name `Skycoder42/SuperLib`, but app also depends on lib.
+
+The first step would be to choose a subdirs project to add the dependency to. For this example, the libs project is choosen. Add the following lines to add the dependency:
+```qmake
+TEMPLATE = subdirs
+SUBDIRS += lib
+
+# ....
+
+QDEP_PROJECT_SUBDIRS += Skycoder42/SuperLib
+lib.qdep_depends += Skycoder42/SuperLib
+!load(qdep):error("Failed to load qdep feature")
+```
+The `QDEP_PROJECT_SUBDIRS` is used to actually pull in the project dependency, while adding it to `lib.qdep_depends` *only* makes sure that the qdep dependency is built before lib. This is not needed if lib does not depend on the qdep dependency. It is however recommended to always have a seperate subdirs project for qdep dependencies, i.e. for this concrete example it would be better to move the lib project one stage up or create another subdir project within libs that references the qdep dependencies.
+
+Next, we need to reference the library itself in app/lib. The procedure is the same for both, so here it is only shown for the app project as an example. In the app pro file, add the lines:
+```qmake
+QDEP_PROJECT_ROOT = libs  # Or "./libs" - would be ".." for the lib project
+QDEP_PROJECT_LINK_DEPENDS += Skycoder42/SuperLib
+!load(qdep):error("Failed to load qdep feature")
+```
+`QDEP_PROJECT_ROOT` tells qdep where the project is located, that contains the reference to the actual qdep project dependency, and `QDEP_PROJECT_LINK_DEPENDS` list all the dependencies this project (app) depends on. If any dependency listed there was not specified in the libs project via `QDEP_PROJECT_SUBDIRS`, the build will fail.
+
+And with that, the project dependency has been sucessfully added and referenced. With the next build, the project would be downloaded, compiled and linked against app/lib.
+
 #### Creating project dependencies
+Generally speaking, project dependencies are just normal qmake projects. However, such a project should **always** include the qdep feature and add `qdep_link_export` to the config, as without the generated export pri file, it will not be usable as qdep project dependency. But besides that, you can do anything you want, i.e. add other normal qdep pri dependencies etc. and even export them if needed.
+
+However, there is one additional feature that is only possible with qdep project dependencies: You can directly reference other qdep project dependencies. Doing so will make sure that whichever subdirs project that includes this project will also include the dependencies as subdirs and ensure the qmake build order, as well as referencing the corresponding export pri files. To for example reference `Skycoder42/SuperLib` from within a qdep project dependency, add the following:
+```qmake
+QDEP_PROJECT_DEPENDS += Skycoder42/SuperLib
+!load(qdep):error("Failed to load qdep feature")
+```
 
 ## Documentation
-...
+In the following sections, all the functions, variables etc. of qdep are documented for reference. 
+
+### Command line interface
+qdep has a public and a private command line API. The public API is intended to be used by delevopers, while the internal API is used by the qdep qmake feature to perform various operations. The following sections list all the commands with a short description. For more details on each command, type `qdep <command> --help` 
+
+#### Public API operations:
+```
+prfgen     Generate a qmake project feature (prf) for the given qmake.
+init       Initialize a pro file to use qdep by adding the required lines.
+lupdate    Run lupdate for the QDEP_TRANSLATION variable in a given pri
+           file.
+clear      Remove all sources from the users global cache.
+versions   List all known versions/tags of the given package
+query      Query details about a given package identifier
+get        Download the sources of one ore more packages into the source
+           cache.
+update     Check for newer versions of used packages and optionally update
+           them.
+```
+
+#### Private API operations:
+```
+dephash     Generated unique identifying hashes for qdep
+            packages.
+pkgresolve  Download the given qdep package and extract relevant
+            information from it.
+hookgen     Generate a header file with a method to load all
+            resource hooks.
+hookimp     Generate a source file that includes and runs all
+            qdep hooks as normal startup hook.
+lconvert    Combine ts files with translations from qdep
+            packages.
+prolink     Resolve the path a linked project dependency would
+            be at.
+```
 
 ### QMAKE-Feature
+This is the documentation of the qmake feature that is generated by qdep and loaded by adding `load(qdep)` to your project. All variables, CONFIG-flags and more are documented below.
 
 #### Variables
 ##### Common Variables
