@@ -12,8 +12,8 @@ debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_SOURCES_DIR = $
 else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_SOURCES_DIR = $${QDEP_GENERATED_DIR}/debug
 else: QDEP_GENERATED_SOURCES_DIR = $$QDEP_GENERATED_DIR
 isEmpty(QDEP_GENERATED_TS_DIR): QDEP_GENERATED_TS_DIR = $$QDEP_GENERATED_DIR/.qdepts
-debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_TS_DIR = $${QDEP_GENERATED_QM_DIR}/release
-else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_TS_DIR = $${QDEP_GENERATED_QM_DIR}/debug
+debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_TS_DIR = $${QDEP_GENERATED_TS_DIR}/release
+else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_TS_DIR = $${QDEP_GENERATED_TS_DIR}/debug
 isEmpty(QDEP_LCONVERT) {
 	qtPrepareTool(QDEP_LCONVERT, lconvert)
 	QDEP_LCONVERT += -sort-contexts 
