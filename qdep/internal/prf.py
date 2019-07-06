@@ -368,11 +368,11 @@ __qdep_dump_dependencies: \\
 # Next collect all indirect dependencies
 # for GCC: create a link group, as these all add libs in arbitrary order
 !isEmpty(QDEP_LINK_DEPENDS) {
-	gcc:!mac: LIBS += -Wl,--start-group
+	gcc:!clang: LIBS += -Wl,--start-group
 	for(link_dep, QDEP_LINK_DEPENDS): \\
 		!include($$qdepLinkExpand($$link_dep)): \\
 		error("Failed to include linked library $$link_dep")
-	gcc:!mac: LIBS += -Wl,--end-group
+	gcc:!clang: LIBS += -Wl,--end-group
 }
 
 # Collect all dependencies and then include them
