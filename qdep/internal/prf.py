@@ -229,7 +229,10 @@ defineReplace(qdepResolveProjectLinkDeps) {
 defineReplace(qdepOutQuote) {
 	result = 
 	var_name = $$1
-	for(value, 2): result += "$$var_name += $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value)"
+	equals(3, prepend): \\
+		for(value, 2): result += "$$var_name = $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value) $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}$$var_name"
+	else: \\
+		for(value, 2): result += "$$var_name += $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value)"
 	return($$result)
 }
 
@@ -271,12 +274,12 @@ defineTest(qdepCreateExportPri) {
 			else:debug_and_release:CONFIG(debug, debug|release): out_libdir = $${out_libdir}/debug
 		} else: out_libdir = $$absolute_path($$DESTDIR, $$OUT_PWD)
 
-		out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/")
-		equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}")
+		equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}", prepend)
 		else {
 			win32: bin_suffix = .exe
-			out_file_data += $$qdepOutQuote($$lib_var_name, "-l:$${TARGET}$${bin_suffix}")
+			out_file_data += $$qdepOutQuote($$lib_var_name, "-l:$${TARGET}$${bin_suffix}", prepend)
 		}
+		out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/", prepend)
 
 		static|staticlib {
 			out_file_data += $$qdepOutQuote(DEPENDPATH, $$_PRO_FILE_PWD_)
@@ -367,13 +370,10 @@ __qdep_dump_dependencies: \\
 
 # Next collect all indirect dependencies
 # for GCC: create a link group, as these all add libs in arbitrary order
-!isEmpty(QDEP_LINK_DEPENDS) {
-	gcc:!clang: LIBS += -Wl,--start-group
+!isEmpty(QDEP_LINK_DEPENDS): \\
 	for(link_dep, QDEP_LINK_DEPENDS): \\
-		!include($$qdepLinkExpand($$link_dep)): \\
-		error("Failed to include linked library $$link_dep")
-	gcc:!clang: LIBS += -Wl,--end-group
-}
+	!include($$qdepLinkExpand($$link_dep)): \\
+	error("Failed to include linked library $$link_dep")
 
 # Collect all dependencies and then include them
 !isEmpty(QDEP_DEPENDS): {
