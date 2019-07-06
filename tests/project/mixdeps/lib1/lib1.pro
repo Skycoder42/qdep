@@ -15,3 +15,5 @@ CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 
 CONFIG += no_run_tests_target
 include(../../testrun.pri)
+
+message(LIBS: $$LIBS)

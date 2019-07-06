@@ -238,8 +238,15 @@ defineReplace(qdepOutQuote) {
 
 # A function to create a pri file to include the library and all exported
 defineTest(qdepCreateExportPri) {
+	# write include guard
+	out_file_data = "!contains(__QDEP_EXPORT_QMAKE_INCLUDE_GUARD, $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}PWD) {"
+	out_file_data += $$qdepOutQuote(__QDEP_EXPORT_QMAKE_INCLUDE_GUARD, $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}PWD)
+	
+	# write dependencies
+	for(link_dep, QDEP_LINK_DEPENDS): \\
+		out_file_data += "include($$qdepLinkExpand($$link_dep))"
+	
 	# write basic variables
-	out_file_data = 
 	out_file_data += $$qdepOutQuote(DEFINES, $$QDEP_EXPORTED_DEFINES $$QDEP_DEFINES)
 	out_file_data += $$qdepOutQuote(INCLUDEPATH, $$QDEP_EXPORTED_INCLUDEPATH $$QDEP_INCLUDEPATH)
 	for(exp_var_key, QDEP_VAR_EXPORTS): out_file_data += $$qdepOutQuote($$exp_var_key, $$eval($$exp_var_key))
@@ -290,6 +297,7 @@ defineTest(qdepCreateExportPri) {
 		}
 	}
 
+	out_file_data += "}"
 	write_file($$1, out_file_data):return(true)
 	else:return(false)
 }
