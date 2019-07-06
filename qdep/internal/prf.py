@@ -284,10 +284,6 @@ defineTest(qdepCreateExportPri) {
 			win32-g++: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
 			else:win32: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/$${TARGET}.lib")
 			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
-
-			# copy on all linked libraries needed by this one
-			out_file_data += $$qdepOutQuote(LIBS, $$LIBS)
-			out_file_data += $$qdepOutQuote(LIBS_PRIVATE, $$LIBS_PRIVATE)
 		}
 	}
 
@@ -370,10 +366,14 @@ __qdep_dump_dependencies: \\
 }
 
 # Next collect all indirect dependencies
-!isEmpty(QDEP_LINK_DEPENDS): \\
+# for GCC: create a link group, as these all add libs in arbitrary order
+!isEmpty(QDEP_LINK_DEPENDS) {
+	gcc:!mac: LIBS += -Wl,--start-group
 	for(link_dep, QDEP_LINK_DEPENDS): \\
-	!include($$qdepLinkExpand($$link_dep)): \\
-	error("Failed to include linked library $$link_dep")
+		!include($$qdepLinkExpand($$link_dep)): \\
+		error("Failed to include linked library $$link_dep")
+	gcc:!mac: LIBS += -Wl,--end-group
+}
 
 # Collect all dependencies and then include them
 !isEmpty(QDEP_DEPENDS): {
