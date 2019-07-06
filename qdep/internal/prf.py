@@ -231,6 +231,8 @@ defineReplace(qdepOutQuote) {
 	var_name = $$1
 	equals(3, prepend): \\
 		for(value, 2): result += "$$var_name = $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value) $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}$$var_name"
+	else:equals(3, star): \\
+		for(value, 2): result += "$$var_name *= $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value)"
 	else: \\
 		for(value, 2): result += "$$var_name += $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value)"
 	return($$result)
@@ -273,20 +275,13 @@ defineTest(qdepCreateExportPri) {
 		qdep_link_private: lib_var_name = LIBS_PRIVATE
 		else: lib_var_name = LIBS
 
-		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
-
 		isEmpty(DESTDIR) {
 			out_libdir = $$OUT_PWD
 			debug_and_release:CONFIG(release, debug|release): out_libdir = $${out_libdir}/release
 			else:debug_and_release:CONFIG(debug, debug|release): out_libdir = $${out_libdir}/debug
 		} else: out_libdir = $$absolute_path($$DESTDIR, $$OUT_PWD)
 
-		equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}", prepend)
-		else {
-			win32: bin_suffix = .exe
-			out_file_data += $$qdepOutQuote($$lib_var_name, "-l:$${TARGET}$${bin_suffix}", prepend)
-		}
-		out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/", prepend)
+		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
 
 		static|staticlib {
 			out_file_data += $$qdepOutQuote(DEPENDPATH, $$_PRO_FILE_PWD_)
@@ -295,6 +290,19 @@ defineTest(qdepCreateExportPri) {
 			else:win32: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/$${TARGET}.lib")
 			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
 		}
+	
+		# write QT, PKGCONFIG and QDEP_LIBS (unless disabled)
+		!qdep_no_export_link {
+			qt: out_file_data += $$qdepOutQuote(QT, $$QT, star)
+			link_pkgconfig: out_file_data += $$qdepOutQuote(PKGCONFIG, $$PKGCONFIG, star)
+		}
+
+		equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}", prepend)
+		else {
+			win32: bin_suffix = .exe
+			out_file_data += $$qdepOutQuote($$lib_var_name, "-l:$${TARGET}$${bin_suffix}", prepend)
+		}
+		out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/", prepend)
 	}
 
 	out_file_data += "}"
