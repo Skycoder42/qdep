@@ -29,7 +29,7 @@ def prfgen(script_path, qmake="qmake", data_dir=None):
 def init(profile):
 	with open(profile, "a") as pro_file:
 		pro_file.write("\nQDEP_DEPENDS += \n\n")
-		pro_file.write("!load(qdep):error(\"Failed to load qdep feature! Run 'qdep.py prfgen --qmake $$QMAKE_QMAKE' to create it.\")\n")
+		pro_file.write("!load(qdep):error(\"Failed to load qdep feature! Run 'qdep prfgen --qmake $$QMAKE_QMAKE' to create it.\")\n")
 
 
 def lupdate(pri_path, qmake="qmake", lupdate_args=None):

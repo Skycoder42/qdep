@@ -32,9 +32,6 @@ matrix:
     - os: linux
       env:
         - PLATFORM=android_x86
-    - os: linux
-      env:
-        - PLATFORM=wasm_32
     - os: osx
       env:
         - PLATFORM=clang_64
