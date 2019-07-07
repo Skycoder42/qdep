@@ -141,7 +141,7 @@ def get_sources(pkg_url, pkg_branch, pull=True, clone=True):
 				sub_run(["git", "pull", "--force", "--ff-only", "--update-shallow", "--recurse-submodules"], cwd=cache_dir, stdout=subprocess.DEVNULL, check=True)
 				needs_ro = True
 		elif clone:
-			sub_run(["git", "clone", "--recurse-submodules", "--shallow-submodules", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
+			sub_run(["git", "clone", "--recurse-submodules", "--depth", "1", "--branch", pkg_branch, pkg_url, cache_dir], check=True)
 			head_ref_res = sub_run(["git", "symbolic-ref", "HEAD"], cwd=cache_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 			if head_ref_res.returncode != 0:
 				open(path.join(cache_dir, ".qdep_static_branch"), 'a').close()

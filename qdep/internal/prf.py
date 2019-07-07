@@ -55,7 +55,7 @@ defineTest(qdepCollectDependencies) {
 			qdep_ok = 
 			dep_data = $$system($$QDEP_TOOL pkgresolve $$dep_extra_args $$system_quote($$dep_pkg) $$dep_vers_arg, lines, qdep_ok)
 			!equals(qdep_ok, 0):return(false)
-			!equals(dep_hash, $$take_first(dep_data)):error("Cricital internal error: dependencies out of sync"):return(false)
+			!equals(dep_hash, $$take_first(dep_data)):error("Critical internal error: dependencies out of sync"):return(false)
 
 			dep_version = $$take_first(dep_data)
 			dep_base = $$take_first(dep_data)
@@ -129,7 +129,7 @@ defineTest(qdepCollectProjectDependencies) {
 			qdep_ok = 
 			dep_data = $$system($$QDEP_TOOL pkgresolve --project $$dep_extra_args $$system_quote($$dep_pkg) $$dep_vers_arg, lines, qdep_ok)
 			!equals(qdep_ok, 0):return(false)
-			!equals(dep_hash, $$take_first(dep_data)):error("Cricital internal error: dependencies out of sync"):return(false)
+			!equals(dep_hash, $$take_first(dep_data)):error("Critical internal error: project dependencies out of sync"):return(false)
 
 			dep_version = $$take_first(dep_data)
 			dep_base = $$take_first(dep_data)
