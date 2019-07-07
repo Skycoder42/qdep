@@ -264,6 +264,7 @@ defineTest(qdepCreateExportPri) {
 	# write basic variables
 	out_file_data += $$qdepOutQuote(DEFINES, $$QDEP_EXPORTED_DEFINES $$QDEP_DEFINES)
 	out_file_data += $$qdepOutQuote(INCLUDEPATH, $$QDEP_EXPORTED_INCLUDEPATH $$QDEP_INCLUDEPATH)
+	out_file_data += $$qdepOutQuote(LIBS, $$QDEP_EXPORTED_LIBS $$QDEP_LIBS)
 	for(exp_var_key, QDEP_VAR_EXPORTS): out_file_data += $$qdepOutQuote($$exp_var_key, $$eval($$exp_var_key))
 
 	# write package cache
@@ -425,12 +426,15 @@ __qdep_dump_dependencies: \\
 	else:for(dep, __QDEP_INCLUDE_CACHE):equals($${dep}.local, 1) {
 		__qdep_define_offset = $$size(DEFINES)
 		__qdep_include_offset = $$size(INCLUDEPATH)
+		__qdep_libs_offset = $$size(LIBS)
 		include($$first($${dep}.path)) {
 			qdep_export_all|contains(QDEP_EXPORTS, $$first($${dep}.package)) {
 				QDEP_EXPORTED_DEFINES += $$member(DEFINES, $$__qdep_define_offset, -1)
 				export(QDEP_EXPORTED_DEFINES)
 				QDEP_EXPORTED_INCLUDEPATH += $$member(INCLUDEPATH, $$__qdep_include_offset, -1)
 				export(QDEP_EXPORTED_INCLUDEPATH)
+				QDEP_EXPORTED_LIBS += $$member(LIBS, $$__qdep_libs_offset, -1)
+				export(QDEP_EXPORTED_LIBS)
 			}
 		} else:error("Failed to include pri file $$first($${dep}.package)")
 	}
@@ -517,4 +521,5 @@ equals(TEMPLATE, lib):!qdep_no_link|qdep_link_export|qdep_export_all|!isEmpty(QD
 
 DEFINES += $$QDEP_DEFINES
 INCLUDEPATH += $$QDEP_INCLUDEPATH
+LIBS += $$QDEP_LIBS
 """
