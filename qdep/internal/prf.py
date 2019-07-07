@@ -277,9 +277,6 @@ defineTest(qdepCreateExportPri) {
 	}
 
 	# write library linkage common parts
-	qdep_link_private: lib_var_name = LIBS_PRIVATE
-	else: lib_var_name = LIBS
-
 	isEmpty(DESTDIR) {
 		out_libdir = $$OUT_PWD
 		debug_and_release:CONFIG(release, debug|release): out_libdir = $${out_libdir}/release
@@ -314,20 +311,20 @@ defineTest(qdepCreateExportPri) {
 			else:win32: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/$${TARGET}.lib", "", 2)
 			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a", "", 2)
 
-			out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}", prepend, 2)
-			out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/", prepend, 2)
+			out_file_data += $$qdepOutQuote(LIBS, "-l$${TARGET}", prepend, 2)
+			out_file_data += $$qdepOutQuote(LIBS, "-L$${out_libdir}/", prepend, 2)
 		}
 		
 		out_file_data += "$$escape_expand(\\t)}"
 	} else {
 		# linkage
 		!qdep_no_link {
-			equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}", prepend)
+			equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote(LIBS, "-l$${TARGET}", prepend)
 			else {
 				win32: bin_suffix = .exe
-				out_file_data += $$qdepOutQuote($$lib_var_name, "-l:$${TARGET}$${bin_suffix}", prepend)
+				out_file_data += $$qdepOutQuote(LIBS, "-l:$${TARGET}$${bin_suffix}", prepend)
 			}
-			out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/", prepend)
+			out_file_data += $$qdepOutQuote(LIBS, "-L$${out_libdir}/", prepend)
 		}
 	}
 

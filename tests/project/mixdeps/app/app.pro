@@ -10,8 +10,14 @@ CONFIG += qdep_no_pull  # disable for performance - still enabled in first test
 !contains(DEFINES, LIB3_DEFINED): error("!LIB3_DEFINED")
 !contains(DEFINES, PROJECT4_DEFINED): error("!PROJECT4_DEFINED")
 !contains(QT, sql): error("sql")
-contains(LIBS, -llib3): error("-llib3")
-contains(LIBS, -lproject4): error("-lproject4")
+
+static {
+	!contains(LIBS, -llib3): error("!-llib3")
+	!contains(LIBS, -lproject4): error("!-lproject4")
+} else {
+	contains(LIBS, -llib3): error("-llib3")
+	contains(LIBS, -lproject4): error("-lproject4")
+}
 
 include(../../testrun.pri)
 
