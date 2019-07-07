@@ -6,6 +6,8 @@ HEADERS += lib2.h
 
 SOURCES += lib2.cpp
 
+DEFINES += LIB2_BUILD
+
 QDEP_LINK_DEPENDS += ../lib3
 
 QDEP_PROJECT_ROOT = ..
