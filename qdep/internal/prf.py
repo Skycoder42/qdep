@@ -379,6 +379,13 @@ defineReplace(qdepResolveLinkRoot) {
 	return()
 }
 
+# shell_escape a list of files
+defineReplace(qdepShellQuote) {
+	out_files = 
+	for(input, ARGS): out_files += $$shell_quote($$absolute_path($$input, $$_PRO_FILE_PWD_))
+	return($$out_files)
+}
+
 # dump dependencies for update collection
 defineTest(qdepDumpUpdateDeps) {
 	dump_data = $$_PRO_FILE_
@@ -473,6 +480,18 @@ static|staticlib:equals(TEMPLATE, lib) {
 	QMAKE_EXTRA_COMPILERS += __qdep_hook_importer_c
 }
 
+# Create lupdate target
+isEmpty(QDEP_LUPDATE_ARGS): QDEP_LUPDATE_ARGS = -recursive -locations relative
+isEmpty(__QDEP_LUPDATE) {
+	qtPrepareTool(__QDEP_LUPDATE, lupdate)
+	__QDEP_LUPDATE += $$QDEP_LUPDATE_ARGS
+}
+
+__qdep_lupdate_target.target = lupdate
+__qdep_lupdate_target.commands = $$QDEP_LUPDATE $$qdepShellQuote($$_PRO_FILE_PWD_ $$QDEP_LUPDATE_INPUTS) -ts $$qdepShellQuote($$TRANSLATIONS)
+__qdep_lupdate_target.depends += $$QDEP_LUPDATE_EXE $$_PRO_FILE_PWD_ $$QDEP_LUPDATE_INPUTS
+QMAKE_EXTRA_TARGETS += __qdep_lupdate_target
+
 # fix for broken lrelease make feature
 {
 	isEmpty(LRELEASE_DIR): LRELEASE_DIR = .qm
@@ -493,12 +512,10 @@ qm_files.CONFIG += no_check_exist
 	TRANSLATIONS = 
 
 	# compiler for combined translations
-	__qdep_ts_tmp = 
-	for(tsfile, QDEP_TRANSLATIONS): __qdep_ts_tmp += $$shell_quote($$tsfile)
 	__qdep_qm_combine_c.name = qdep lrelease ${QMAKE_FILE_IN}
 	__qdep_qm_combine_c.input = __QDEP_ORIGINAL_TRANSLATIONS 
 	__qdep_qm_combine_c.variable_out = TRANSLATIONS
-	__qdep_qm_combine_c.commands = $$QDEP_PATH lconvert --combine $$__qdep_ts_tmp -- ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT} $$QDEP_LCONVERT
+	__qdep_qm_combine_c.commands = $$QDEP_PATH lconvert --combine $$qdepShellQuote($$QDEP_TRANSLATIONS) -- ${QMAKE_FILE_IN} ${QMAKE_FILE_OUT} $$QDEP_LCONVERT
 	__qdep_qm_combine_c.output = $$QDEP_GENERATED_TS_DIR/${QMAKE_FILE_BASE}.ts
 	__qdep_qm_combine_c.CONFIG += no_link
 	__qdep_qm_combine_c.depends += $$QDEP_PATH $$QDEP_LCONVERT_EXE $$QDEP_TRANSLATIONS
