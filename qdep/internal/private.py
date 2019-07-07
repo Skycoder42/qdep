@@ -32,21 +32,23 @@ def hookgen(prefix, header, resources=None, hooks=None):
 	if hooks is None:
 		hooks = []
 
-	inc_guard = path.basename(header).replace(".", "_").upper()
+	inc_guard = cpp_escape(path.basename(header)).upper()
 	with open(header, "w") as out_file:
 		out_file.write("#ifndef {}\n".format(inc_guard))
 		out_file.write("#define {}\n\n".format(inc_guard))
 
+		out_file.write("#include <QtCore/qglobal.h>\n\n")
+
 		for hook in hooks:
 			out_file.write("void {}();\n".format(hook))
 
-		out_file.write("\ninline void qdep_{}_init() {{\n".format(prefix))
+		out_file.write("\ninline void qdep_{}_init() {{\n".format(cpp_escape(prefix)))
 		out_file.write("\t// resources\n")
 		for resource in resources:  # ignore the first argument, as it is always the current pro file (to ensure this rule is always run
-			out_file.write("\tQ_INIT_RESOURCE({});\n".format(path.splitext(path.basename(resource))[0]))
+			out_file.write("\tQ_INIT_RESOURCE({});\n".format(cpp_escape(path.splitext(path.basename(resource))[0])))
 		out_file.write("\t// hooks\n")
 		for hook in hooks:
-			out_file.write("\t{}();\n".format(hook))
+			out_file.write("\t::{}();\n".format(hook))
 		out_file.write("}\n\n")
 
 		out_file.write("#endif //{}\n".format(inc_guard))
@@ -75,7 +77,7 @@ def hookimp(outfile, headers=None, hooks=None):
 		out_file.write("\nnamespace {\n\n")
 		out_file.write("void __qdep_startup_hooks() {\n")
 		for target in targets:
-			out_file.write("\tqdep_{}_init();\n".format(target))
+			out_file.write("\tqdep_{}_init();\n".format(cpp_escape(target)))
 		for hook in hooks:
 			out_file.write("\t::{}();\n".format(hook))
 		out_file.write("}\n\n")

@@ -41,6 +41,10 @@ def pkg_hash(pkg_url, pkg_path):
 	return "__QDEP_PKG_" + hashlib.sha3_256((pkg_url + pkg_path).lower().encode("UTF-8")).hexdigest()
 
 
+def cpp_escape(name, ascii=True):
+	return re.sub(r"[^\w]", "_", name, re.ASCII if ascii else re.UNICODE)
+
+
 def sub_run(*args, **kwargs):
 	sys.stdout.flush()
 	sys.stderr.flush()
