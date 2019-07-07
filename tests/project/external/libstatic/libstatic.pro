@@ -17,7 +17,7 @@ RESOURCES += \
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package2/package2.pri
 QDEP_DEPENDS += Skycoder42/qdep@master/tests/packages/external/package3/package3.pri
 
-QDEP_HOOK_FNS += libstatic_startup_hook
+QDEP_HOOK_FNS += libstatic::hooks::startup_hook
 
 QDEP_DEFINES += LIBSTATIC_TEST
 QDEP_INCLUDEPATH += $$PWD/extra

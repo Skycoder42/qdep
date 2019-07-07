@@ -40,7 +40,7 @@ def hookgen(prefix, header, resources=None, hooks=None):
 		out_file.write("#include <QtCore/qglobal.h>\n\n")
 
 		for hook in hooks:
-			out_file.write("void {}();\n".format(hook))
+			out_file.write(declare_hook(hook))
 
 		out_file.write("\ninline void qdep_{}_init() {{\n".format(cpp_escape(prefix)))
 		out_file.write("\t// resources\n")
@@ -72,7 +72,7 @@ def hookimp(outfile, headers=None, hooks=None):
 
 		out_file.write("\n")
 		for hook in hooks:
-			out_file.write("void {}();\n".format(hook))
+			out_file.write(declare_hook(hook))
 
 		out_file.write("\nnamespace {\n\n")
 		out_file.write("void __qdep_startup_hooks() {\n")

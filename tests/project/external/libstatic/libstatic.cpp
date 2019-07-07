@@ -6,17 +6,21 @@ bool _startup_run2 = false;
 
 }
 
-void libstatic_startup_hook()
+namespace libstatic::hooks {
+
+void startup_hook()
 {
-    _startup_run2 = true;
+	_startup_run2 = true;
+}
+
 }
 
 bool LibStatic::libStartupRun()
 {
-    return _startup_run2;
+	return _startup_run2;
 }
 
 double LibStatic::magicFraction()
 {
-    return 0.42;
+	return 0.42;
 }

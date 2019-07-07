@@ -45,6 +45,14 @@ def cpp_escape(name, ascii=True):
 	return re.sub(r"[^\w]", "_", name, re.ASCII if ascii else re.UNICODE)
 
 
+def declare_hook(hook):
+	last_sep = hook.rfind("::")
+	if last_sep != -1:
+		return "namespace {} {{ void {}(); }}\n".format(hook[:last_sep], hook[last_sep + 2:])
+	else:
+		return "void {}();\n".format(hook)
+
+
 def sub_run(*args, **kwargs):
 	sys.stdout.flush()
 	sys.stderr.flush()
