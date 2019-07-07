@@ -229,12 +229,21 @@ defineReplace(qdepResolveProjectLinkDeps) {
 defineReplace(qdepOutQuote) {
 	result = 
 	var_name = $$1
+	isEmpty(4): \\
+		intendent = $$escape_expand(\\t)
+	else {
+		intendent = 
+		for(x, "1..$$4"): \\
+			intendent = "$$intendent$$escape_expand(\\t)"
+	}
 	equals(3, prepend): \\
-		for(value, 2): result += "$$var_name = $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value) $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}$$var_name"
+		for(value, 2): result += "$$intendent$$var_name = $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value) $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}$$var_name"
 	else:equals(3, star): \\
-		for(value, 2): result += "$$var_name *= $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value)"
+		for(value, 2): result += "$$intendent$$var_name *= $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value)"
+	else:equals(3, pop): \\
+		for(value, 2): result += "$$intendent$${LITERAL_DOLLAR}$${LITERAL_DOLLAR}take_last($$var_name)"
 	else: \\
-		for(value, 2): result += "$$var_name += $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value)"
+		for(value, 2): result += "$$intendent$$var_name += $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}quote($$value)"
 	return($$result)
 }
 
@@ -245,8 +254,12 @@ defineTest(qdepCreateExportPri) {
 	out_file_data += $$qdepOutQuote(__QDEP_EXPORT_QMAKE_INCLUDE_GUARD, $${LITERAL_DOLLAR}$${LITERAL_DOLLAR}PWD)
 	
 	# write dependencies
+	!static:!staticlib: \\
+		out_file_data += $$qdepOutQuote(__QDEP_IS_DYNAMIC_EXPORT_INCLUDE_STACK, true)
 	for(link_dep, QDEP_LINK_DEPENDS): \\
-		out_file_data += "include($$qdepLinkExpand($$link_dep))"
+		out_file_data += "$$escape_expand(\\t)include($$qdepLinkExpand($$link_dep))"
+	!static:!staticlib: \\
+		out_file_data += $$qdepOutQuote(__QDEP_IS_DYNAMIC_EXPORT_INCLUDE_STACK, true, pop)
 	
 	# write basic variables
 	out_file_data += $$qdepOutQuote(DEFINES, $$QDEP_EXPORTED_DEFINES $$QDEP_DEFINES)
@@ -263,46 +276,59 @@ defineTest(qdepCreateExportPri) {
 		out_file_data += $$qdepOutQuote(__QDEP_INCLUDE_CACHE, $$dep_hash)
 	}
 
-	# write startup hooks
-	static|staticlib {
-		debug_and_release:CONFIG(release, debug|release): out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/release/qdep_$${TARGET}_hooks.h)"
-		else:debug_and_release:CONFIG(debug, debug|release): out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/debug/qdep_$${TARGET}_hooks.h)"
-		else: out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/qdep_$${TARGET}_hooks.h)"
-	}
+	# write library linkage common parts
+	qdep_link_private: lib_var_name = LIBS_PRIVATE
+	else: lib_var_name = LIBS
 
-	# write library linkage
+	isEmpty(DESTDIR) {
+		out_libdir = $$OUT_PWD
+		debug_and_release:CONFIG(release, debug|release): out_libdir = $${out_libdir}/release
+		else:debug_and_release:CONFIG(debug, debug|release): out_libdir = $${out_libdir}/debug
+	} else: out_libdir = $$absolute_path($$DESTDIR, $$OUT_PWD)
+		
 	!qdep_no_link {
-		qdep_link_private: lib_var_name = LIBS_PRIVATE
-		else: lib_var_name = LIBS
-
-		isEmpty(DESTDIR) {
-			out_libdir = $$OUT_PWD
-			debug_and_release:CONFIG(release, debug|release): out_libdir = $${out_libdir}/release
-			else:debug_and_release:CONFIG(debug, debug|release): out_libdir = $${out_libdir}/debug
-		} else: out_libdir = $$absolute_path($$DESTDIR, $$OUT_PWD)
-
+		# write includepath
 		out_file_data += $$qdepOutQuote(INCLUDEPATH, $$_PRO_FILE_PWD_)
-
-		static|staticlib {
-			out_file_data += $$qdepOutQuote(DEPENDPATH, $$_PRO_FILE_PWD_)
-
-			win32-g++: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
-			else:win32: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/$${TARGET}.lib")
-			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a")
-		}
 	
 		# write QT, PKGCONFIG and QDEP_LIBS (unless disabled)
 		!qdep_no_export_link {
 			qt: out_file_data += $$qdepOutQuote(QT, $$QT, star)
 			link_pkgconfig: out_file_data += $$qdepOutQuote(PKGCONFIG, $$PKGCONFIG, star)
 		}
+	}
 
-		equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}", prepend)
-		else {
-			win32: bin_suffix = .exe
-			out_file_data += $$qdepOutQuote($$lib_var_name, "-l:$${TARGET}$${bin_suffix}", prepend)
+	# write static/dynamic specific library extra stuff
+	static|staticlib:equals(TEMPLATE, lib) {
+		out_file_data += "$$escape_expand(\\t)isEmpty(__QDEP_IS_DYNAMIC_EXPORT_INCLUDE_STACK) {"
+		
+		# write startup hooks
+		debug_and_release:CONFIG(release, debug|release): out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/release/qdep_$${TARGET}_hooks.h, "", 2)"
+		else:debug_and_release:CONFIG(debug, debug|release): out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/debug/qdep_$${TARGET}_hooks.h, "", 2)"
+		else: out_file_data += "$$qdepOutQuote(__QDEP_HOOK_FILES, $$QDEP_GENERATED_DIR/qdep_$${TARGET}_hooks.h, "", 2)"
+		
+		# linkage
+		!qdep_no_link {
+			out_file_data += $$qdepOutQuote(DEPENDPATH, $$_PRO_FILE_PWD_, "", 2)
+
+			win32-g++: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a", "", 2)
+			else:win32: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/$${TARGET}.lib", "", 2)
+			else:unix: out_file_data += $$qdepOutQuote(PRE_TARGETDEPS, "$${out_libdir}/lib$${TARGET}.a", "", 2)
+
+			out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}", prepend, 2)
+			out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/", prepend, 2)
 		}
-		out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/", prepend)
+		
+		out_file_data += "$$escape_expand(\\t)}"
+	} else {
+		# linkage
+		!qdep_no_link {
+			equals(TEMPLATE, lib):out_file_data += $$qdepOutQuote($$lib_var_name, "-l$${TARGET}", prepend)
+			else {
+				win32: bin_suffix = .exe
+				out_file_data += $$qdepOutQuote($$lib_var_name, "-l:$${TARGET}$${bin_suffix}", prepend)
+			}
+			out_file_data += $$qdepOutQuote($$lib_var_name, "-L$${out_libdir}/", prepend)
+		}
 	}
 
 	out_file_data += "}"
