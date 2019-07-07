@@ -6,6 +6,8 @@ HEADERS += project5.h
 
 SOURCES += project5.cpp
 
+DEFINES += PROJECT5_BUILD
+
 QDEP_PROJECT_DEPENDS += Skycoder42/qdep@master/tests/packages/mixdeps/project3/project3.pro
 
 CONFIG += qdep_no_pull  # disable for performance - still enabled in first test

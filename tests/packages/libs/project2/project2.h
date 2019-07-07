@@ -11,7 +11,7 @@
 
 namespace Project2 {
 
-void PROJECT2_EXPORT doStuff();
+PROJECT2_EXPORT void doStuff();
 
 }
 
