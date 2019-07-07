@@ -462,7 +462,7 @@ static|staticlib:equals(TEMPLATE, lib) {
 	__qdep_hook_generator_c.CONFIG += target_predeps combine no_link
 	__qdep_hook_generator_c.depends += $$QDEP_PATH
 	QMAKE_EXTRA_COMPILERS += __qdep_hook_generator_c
-} else {
+} else:!equals(TEMPLATE, aux) {
 	__qdep_hook_importer_c.name = qdep hookimp ${QMAKE_FILE_IN}
 	__qdep_hook_importer_c.input = _PRO_FILE_ __QDEP_HOOK_FILES
 	__qdep_hook_importer_c.variable_out = GENERATED_SOURCES
@@ -494,7 +494,7 @@ qm_files.CONFIG += no_check_exist
 
 	# compiler for combined translations
 	__qdep_ts_tmp = 
-	for(tsfile, QDEP_TRANSLATIONS) __qdep_ts_tmp += $$system_quote($$tsfile)
+	for(tsfile, QDEP_TRANSLATIONS): __qdep_ts_tmp += $$shell_quote($$tsfile)
 	__qdep_qm_combine_c.name = qdep lrelease ${QMAKE_FILE_IN}
 	__qdep_qm_combine_c.input = __QDEP_ORIGINAL_TRANSLATIONS 
 	__qdep_qm_combine_c.variable_out = TRANSLATIONS
