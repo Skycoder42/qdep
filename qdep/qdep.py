@@ -2,7 +2,7 @@ from qdep.internal.common import *
 from qdep.internal.prf import *
 
 
-version = "1.1.0"
+version = "1.1.1"
 
 
 def prfgen(script_path, qmake="qmake", data_dir=None):

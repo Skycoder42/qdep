@@ -14,6 +14,11 @@ else: QDEP_GENERATED_SOURCES_DIR = $$QDEP_GENERATED_DIR
 isEmpty(QDEP_GENERATED_TS_DIR): QDEP_GENERATED_TS_DIR = $$QDEP_GENERATED_DIR/.qdepts
 debug_and_release:CONFIG(release, debug|release): QDEP_GENERATED_TS_DIR = $${QDEP_GENERATED_TS_DIR}/release
 else:debug_and_release:CONFIG(debug, debug|release): QDEP_GENERATED_TS_DIR = $${QDEP_GENERATED_TS_DIR}/debug
+isEmpty(QDEP_LUPDATE) {
+	qtPrepareTool(QDEP_LUPDATE, lupdate)
+	QDEP_LUPDATE += -recursive -locations relative
+    qdep_lupdate_no_obsolete: QDEP_LUPDATE += -no-obsolete
+}
 isEmpty(QDEP_LCONVERT) {
 	qtPrepareTool(QDEP_LCONVERT, lconvert)
 	QDEP_LCONVERT += -sort-contexts 
@@ -481,12 +486,6 @@ static|staticlib:equals(TEMPLATE, lib) {
 }
 
 # Create lupdate target
-isEmpty(QDEP_LUPDATE_ARGS): QDEP_LUPDATE_ARGS = -recursive -locations relative
-isEmpty(__QDEP_LUPDATE) {
-	qtPrepareTool(__QDEP_LUPDATE, lupdate)
-	__QDEP_LUPDATE += $$QDEP_LUPDATE_ARGS
-}
-
 __qdep_lupdate_target.target = lupdate
 __qdep_lupdate_target.commands = $$QDEP_LUPDATE $$qdepShellQuote($$_PRO_FILE_PWD_ $$QDEP_LUPDATE_INPUTS) -ts $$qdepShellQuote($$TRANSLATIONS)
 __qdep_lupdate_target.depends += $$QDEP_LUPDATE_EXE $$_PRO_FILE_PWD_ $$QDEP_LUPDATE_INPUTS
